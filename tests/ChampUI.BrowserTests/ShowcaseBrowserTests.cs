@@ -36,11 +36,12 @@ public class ShowcaseBrowserTests
 
         await page.GetByRole(AriaRole.Link, new() { Name = "Data", Exact = true }).ClickAsync();
         var source = page.GetByRole(AriaRole.Combobox, new() { Name = "Data source" });
-        await source.SelectOptionAsync("Paged");
+        await Expect(page.Locator(".ui-nav-item.is-active")).ToHaveCountAsync(1);
+        await source.SelectOptionAsync(new SelectOptionValue { Label = "Paged provider" });
         await Expect(page.GetByText("Project 001", new() { Exact = true })).ToBeVisibleAsync();
         await page.GetByRole(AriaRole.Button, new() { Name = "Next page" }).ClickAsync();
         await Expect(page.GetByText("Project 009", new() { Exact = true })).ToBeVisibleAsync();
-        await source.SelectOptionAsync("Virtual");
+        await source.SelectOptionAsync(new SelectOptionValue { Label = "Virtual range provider" });
         await Expect(page.GetByText("Project 001", new() { Exact = true })).ToBeVisibleAsync();
         Assert.Empty(errors);
     }

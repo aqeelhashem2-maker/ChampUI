@@ -16,6 +16,7 @@ async function verify() {
         for (const [route, name] of [['/', 'foundations'], ['/forms', 'forms'], ['/data', 'data'], ['/charts', 'charts']]) {
             await page.goto(new URL(route, baseUrl).href);
             await page.locator('.ui-shell').waitFor();
+            await page.getByRole('button', { name: 'Switch theme' }).and(page.locator('button:enabled')).waitFor();
             await page.evaluate(() => document.fonts.ready);
             await page.mouse.move(0, 0);
             await page.screenshot({ path: join(directory, name + '-light.png'), animations: 'disabled' });
