@@ -6,10 +6,10 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <RootNamespace>ChampUI</RootNamespace>
     <PackageId>ChampUI</PackageId>
-    <Version>0.3.0</Version>
-    <AssemblyVersion>0.3.0.0</AssemblyVersion>
-    <FileVersion>0.3.0.0</FileVersion>
-    <InformationalVersion>0.3.0</InformationalVersion>
+    <Version>0.3.1</Version>
+    <AssemblyVersion>0.3.1.0</AssemblyVersion>
+    <FileVersion>0.3.1.0</FileVersion>
+    <InformationalVersion>0.3.1</InformationalVersion>
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
     <Authors>Sadeem Systems</Authors>
     <Company>Sadeem Systems</Company>
@@ -22,7 +22,7 @@
     <PackageProjectUrl>https://github.com/aqeelhashem2-maker/ChampUI</PackageProjectUrl>
     <RepositoryUrl>https://github.com/aqeelhashem2-maker/ChampUI</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
-    <PackageReleaseNotes>Initial open-source release of ChampUI for .NET 10, including reusable Blazor UI components, data grids, charts, forms, themes, and the neutral ChampUI Showcase.</PackageReleaseNotes>
+    <PackageReleaseNotes>Patch release with improved NuGet metadata, official project and repository links, and updated package release information. Component behavior and public APIs are unchanged.</PackageReleaseNotes>
     <PathMap>$(MSBuildProjectDirectory)=/_/src/ChampUI</PathMap>
   </PropertyGroup>
 

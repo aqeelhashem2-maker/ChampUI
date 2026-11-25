@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.1 release preparation
+
+- Added official project and repository links and patch release notes to the NuGet package metadata.
+- Updated package and assembly versions to 0.3.1 and the independent consumer to target that version.
+- Preserved public API and component behavior.
+
 ## 0.3.0 public source preparation
 
 - Added an independent, neutral showcase with fictional project data and an Arabic RTL demonstration.

@@ -17,7 +17,7 @@ Explore **Foundations**, **Forms**, **Data** and **Charts** in ChampUI Showcase.
 For a local release candidate, put the package in a local feed and restore it with:
 
 ```sh
-dotnet add package ChampUI --version 0.3.0 --source /path/to/local-feed
+dotnet add package ChampUI --version 0.3.1 --source /path/to/local-feed
 ```
 
 The public package will be installable without the local source flag after publication. The package ID is `ChampUI`.
