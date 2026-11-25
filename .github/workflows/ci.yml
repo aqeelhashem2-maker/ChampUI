@@ -25,6 +25,11 @@ jobs:
         run: ./tests/ChampUI.BrowserTests/bin/Release/net10.0/playwright.ps1 install --with-deps chromium
       - name: Run the release regression suites
         run: bash verify_fixes.sh
+      - name: Exercise release-gate failure paths
+        shell: bash
+        run: |
+          set -o pipefail
+          python3 tests/verify_ci_gates.py "$CHAMPUI_EVIDENCE_DIR" | tee "$CHAMPUI_EVIDENCE_DIR/gate-checks.log"
       - name: Save regression evidence
         if: always()
         uses: actions/upload-artifact@v4
