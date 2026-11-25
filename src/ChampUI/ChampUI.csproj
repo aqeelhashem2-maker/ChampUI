@@ -19,6 +19,10 @@
     <Description>Open-source Blazor UI component library developed by Sadeem Systems.</Description>
     <PackageTags>Blazor;UI;Components;DataGrid;Dashboard</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageProjectUrl>https://github.com/aqeelhashem2-maker/ChampUI</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/aqeelhashem2-maker/ChampUI</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageReleaseNotes>Initial open-source release of ChampUI for .NET 10, including reusable Blazor UI components, data grids, charts, forms, themes, and the neutral ChampUI Showcase.</PackageReleaseNotes>
     <PathMap>$(MSBuildProjectDirectory)=/_/src/ChampUI</PathMap>
   </PropertyGroup>
 
