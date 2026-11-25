@@ -1,0 +1,74 @@
+<nav class="ui-pagination @Class" aria-label="Pagination">
+    <span class="ui-pagination__summary" aria-live="polite">@Summary</span>
+    @if (TotalPages > 1)
+    {
+        <div class="ui-pagination__pages">
+            <button type="button" class="ui-pagination__btn" disabled="@(Page <= 1)" aria-label="@PreviousLabel" @onclick="() => GoAsync(Page - 1)">
+                <UiIcon Name="chevron-left" Size="16" Flip="true" />
+            </button>
+            @foreach (var p in PageWindow())
+            {
+                if (p == 0) { <span class="ui-pagination__gap" aria-hidden="true">…</span> }
+                else
+                {
+                    var target = p;
+                    <button type="button" class="ui-pagination__btn" aria-current="@(p == Page ? "page" : null)" aria-label="@PageLabel @p" @onclick="() => GoAsync(target)">@p</button>
+                }
+            }
+            <button type="button" class="ui-pagination__btn" disabled="@(Page >= TotalPages)" aria-label="@NextLabel" @onclick="() => GoAsync(Page + 1)">
+                <UiIcon Name="chevron-right" Size="16" Flip="true" />
+            </button>
+        </div>
+    }
+</nav>
+
+@code {
+    /// <summary>Current page, 1-based.</summary>
+    [Parameter] public int Page { get; set; } = 1;
+    [Parameter] public EventCallback<int> PageChanged { get; set; }
+    [Parameter] public int PageSize { get; set; } = 10;
+    [Parameter] public int TotalItems { get; set; }
+    /// <summary>Format with {0}=first item, {1}=last item, {2}=total.</summary>
+    [Parameter] public string SummaryFormat { get; set; } = "Showing {0}–{1} of {2}";
+    [Parameter] public string PreviousLabel { get; set; } = "Previous page";
+    [Parameter] public string NextLabel { get; set; } = "Next page";
+    [Parameter] public string PageLabel { get; set; } = "Page";
+    [Parameter] public string? Class { get; set; }
+
+    private int TotalPages => PageSize <= 0 ? 1 : Math.Max(1, (int)Math.Ceiling(TotalItems / (double)PageSize));
+
+    private string Summary
+    {
+        get
+        {
+            if (TotalItems == 0) return string.Format(SummaryFormat, 0, 0, 0);
+            var first = (Page - 1) * PageSize + 1;
+            var last = Math.Min(Page * PageSize, TotalItems);
+            return string.Format(SummaryFormat, first, last, TotalItems);
+        }
+    }
+
+    /// <summary>Returns page numbers; 0 stands for an ellipsis.</summary>
+    private IEnumerable<int> PageWindow()
+    {
+        var total = TotalPages;
+        if (total <= 7) { for (var i = 1; i <= total; i++) yield return i; yield break; }
+        yield return 1;
+        var start = Math.Max(2, Page - 1);
+        var end = Math.Min(total - 1, Page + 1);
+        if (Page <= 3) { start = 2; end = 4; }
+        if (Page >= total - 2) { start = total - 3; end = total - 1; }
+        if (start > 2) yield return 0;
+        for (var i = start; i <= end; i++) yield return i;
+        if (end < total - 1) yield return 0;
+        yield return total;
+    }
+
+    private async Task GoAsync(int page)
+    {
+        page = Math.Clamp(page, 1, TotalPages);
+        if (page == Page) return;
+        Page = page;
+        await PageChanged.InvokeAsync(page);
+    }
+}

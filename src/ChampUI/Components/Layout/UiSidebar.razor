@@ -1,0 +1,16 @@
+<aside class="ui-sidebar @Class" id="main-navigation" aria-label="@Label">
+    <div class="ui-sidebar__brand">@Brand</div>
+    <nav class="ui-sidebar__nav" aria-label="@Label">
+        @ChildContent
+    </nav>
+    @if (Footer != null) { <div class="ui-sidebar__footer">@Footer</div> }
+</aside>
+
+@code {
+    [Parameter] public RenderFragment? Brand { get; set; }
+    /// <summary>Navigation items (<c>UiSidebarItem</c>).</summary>
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+    [Parameter] public RenderFragment? Footer { get; set; }
+    [Parameter] public string Label { get; set; } = "Main navigation";
+    [Parameter] public string? Class { get; set; }
+}

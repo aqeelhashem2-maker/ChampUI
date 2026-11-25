@@ -1,0 +1,7 @@
+body { margin: 0; }
+.showcase-shell .ui-shell__content { display: grid; align-content: start; gap: var(--ui-space-5); }
+.showcase-brand { color: var(--ui-text); font-weight: 700; text-decoration: none; }
+.showcase-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 19rem), 1fr)); gap: var(--ui-space-4); }
+.showcase-card-body { display: grid; gap: var(--ui-space-3); }
+.showcase-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--ui-space-3); }
+.showcase-rtl-note { margin: 0; color: var(--ui-text-secondary); }

@@ -1,0 +1,62 @@
+@* UiTextArea — multi-line text input with label, validation, hint and RTL support. *@
+<div class="ui-field @Class">
+    @if (!string.IsNullOrEmpty(Label))
+    {
+        <label class="ui-field__label" for="@_id">
+            @Label
+            @if (Required) { <span class="ui-field__required" aria-hidden="true">*</span> }
+        </label>
+    }
+    <div class="ui-input ui-input--textarea @(string.IsNullOrEmpty(Error) ? null : "ui-input--invalid") @(Disabled ? "ui-input--disabled" : null) @(ReadOnly ? "ui-input--readonly" : null)">
+        <textarea id="@_id"
+                  rows="@Rows"
+                  placeholder="@Placeholder"
+                  disabled="@Disabled"
+                  readonly="@ReadOnly"
+                  maxlength="@(MaxLength > 0 ? MaxLength : (int?)null)"
+                  aria-invalid="@(string.IsNullOrEmpty(Error) ? null : "true")"
+                  aria-describedby="@DescribedBy"
+                  aria-required="@(Required ? "true" : null)"
+                  @oninput="OnInput"
+                  @attributes="Attributes">@Value</textarea>
+    </div>
+    @if (ShowCharCount && MaxLength > 0)
+    {
+        <span class="ui-field__char-count">@(Value?.Length ?? 0) / @MaxLength</span>
+    }
+    @if (!string.IsNullOrEmpty(Error))
+    {
+        <span class="ui-field__error" id="@(_id + "-msg")" role="alert">@Error</span>
+    }
+    else if (!string.IsNullOrEmpty(HelpText))
+    {
+        <span class="ui-field__help" id="@(_id + "-msg")">@HelpText</span>
+    }
+</div>
+
+@code {
+    private readonly string _id = "ta-" + Guid.NewGuid().ToString("N")[..8];
+
+    [Parameter] public string? Value { get; set; }
+    [Parameter] public EventCallback<string?> ValueChanged { get; set; }
+    [Parameter] public string? Label { get; set; }
+    [Parameter] public string? Placeholder { get; set; }
+    [Parameter] public string? HelpText { get; set; }
+    [Parameter] public string? Error { get; set; }
+    [Parameter] public bool Disabled { get; set; }
+    [Parameter] public bool ReadOnly { get; set; }
+    [Parameter] public bool Required { get; set; }
+    [Parameter] public int Rows { get; set; } = 4;
+    [Parameter] public int MaxLength { get; set; }
+    [Parameter] public bool ShowCharCount { get; set; }
+    [Parameter] public string? Class { get; set; }
+    [Parameter(CaptureUnmatchedValues = true)] public Dictionary<string, object>? Attributes { get; set; }
+
+    private string? DescribedBy => string.IsNullOrEmpty(Error) && string.IsNullOrEmpty(HelpText) ? null : _id + "-msg";
+
+    private async Task OnInput(ChangeEventArgs e)
+    {
+        Value = e.Value?.ToString();
+        await ValueChanged.InvokeAsync(Value);
+    }
+}

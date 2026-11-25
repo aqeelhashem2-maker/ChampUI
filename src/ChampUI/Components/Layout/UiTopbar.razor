@@ -1,0 +1,21 @@
+<header class="ui-topbar @Class">
+    <button type="button" class="ui-iconbtn ui-topbar__menu" aria-label="@MenuLabel" aria-controls="main-navigation" @onclick="() => Shell?.ToggleNav()">
+        <UiIcon Name="menu" Size="20" />
+    </button>
+    @if (Start != null) { <div class="ui-topbar__start">@Start</div> }
+    <div class="ui-topbar__center">@ChildContent</div>
+    <div class="ui-topbar__end">@End</div>
+</header>
+
+@code {
+    [CascadingParameter] private UiAppShell? Shell { get; set; }
+
+    /// <summary>Content placed at the leading edge (e.g. workspace switcher).</summary>
+    [Parameter] public RenderFragment? Start { get; set; }
+    /// <summary>Flexible middle area (e.g. global search).</summary>
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+    /// <summary>Content placed at the trailing edge (actions, avatar).</summary>
+    [Parameter] public RenderFragment? End { get; set; }
+    [Parameter] public string MenuLabel { get; set; } = "Toggle navigation";
+    [Parameter] public string? Class { get; set; }
+}

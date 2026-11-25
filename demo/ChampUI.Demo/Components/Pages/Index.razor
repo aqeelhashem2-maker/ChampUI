@@ -1,0 +1,50 @@
+@page "/"
+@inject ToastService Toasts
+
+<PageTitle>ChampUI Showcase</PageTitle>
+<UiPageHeader Title="ChampUI Showcase" Subtitle="Developed by Sadeem Systems" />
+<div class="showcase-grid">
+    <UiCard Title="Foundations" BodyClass="showcase-card-body">
+        <UiTabs Label="Foundations">
+            <UiTab Title="Typography">
+                <h2>Readable interfaces</h2>
+                <p>Use the shell theme tokens for text, surfaces and spacing.</p>
+            </UiTab>
+            <UiTab Title="Icons">
+                <div class="showcase-actions">
+                    <UiIcon Name="layers" Size="24" />
+                    <UiIcon Name="calendar" Size="24" />
+                    <UiIcon Name="check-circle" Size="24" />
+                </div>
+            </UiTab>
+        </UiTabs>
+        <div class="showcase-actions">
+            <UiBadge Variant="UiVariant.Info">Draft</UiBadge>
+            <UiBadge Variant="UiVariant.Success">Ready</UiBadge>
+        </div>
+    </UiCard>
+    <UiCard Title="Feedback" BodyClass="showcase-card-body">
+        <UiAlert Title="Sample data" Variant="UiVariant.Info">Everything in this showcase is fictional.</UiAlert>
+        <div class="showcase-actions">
+            <UiButton OnClick="() => _dialog = true">Open dialog</UiButton>
+            <UiButton Variant="UiVariant.Secondary" OnClick="ShowToast">Show toast</UiButton>
+            <UiButton Variant="UiVariant.Secondary" OnClick="() => _previewLoading = !_previewLoading">Toggle loading preview</UiButton>
+        </div>
+        @if (_previewLoading)
+        {
+            <UiLoading />
+            <UiSkeleton Width="70%" Height="12px" />
+        }
+    </UiCard>
+</div>
+<UiDialog Title="Dialog example" @bind-Visible="_dialog">
+    <ChildContent><p>This example opens a modal with its own keyboard focus.</p></ChildContent>
+    <Footer><UiButton OnClick="() => _dialog = false">Done</UiButton></Footer>
+</UiDialog>
+
+@code {
+    private bool _dialog;
+    private bool _previewLoading;
+
+    private void ShowToast() => Toasts.Success("Saved", "Your sample changes were saved.");
+}

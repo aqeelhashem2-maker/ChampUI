@@ -1,0 +1,184 @@
+@page "/virtual-data-test"
+@using ChampUI
+@rendermode InteractiveServer
+
+<PageTitle>Virtual Data Provider Test</PageTitle>
+
+<h1>Virtual Data Provider Test</h1>
+<p>This page tests UiDataGrid with VirtualProvider for browser verification.</p>
+
+<div data-testid="virtual-grid">
+    <UiDataGrid TItem="TestRecord"
+                Items="@_legacyItems"
+                VirtualProvider="@_virtualProvider"
+                RowKeySelector="@(r => r.Id)"
+                PageSize="10"
+                Selectable="true"
+                Searchable="true"
+                VirtualRowHeight="48"
+                VirtualViewportHeight="600px"
+                AllowCsvExport="true"
+                AllowXlsxExport="true">
+        
+        <Columns>
+            <UiColumn TItem="TestRecord" Value="@(r => r.Id)" Title="ID" Sortable="true" />
+            <UiColumn TItem="TestRecord" Value="@(r => r.Name)" Title="Name" Sortable="true" Searchable="true" />
+            <UiColumn TItem="TestRecord" Value="@(r => r.Category)" Title="Category" Filterable="true" Sortable="true" Searchable="true" />
+            <UiColumn TItem="TestRecord" Value="@(r => r.Value)" Title="Value" Sortable="true" Format="N2" />
+            @if (Scenario == "legacy")
+            {
+                <UiColumn TItem="TestRecord" Value="@(r => r.Date)" Title="Date" />
+            }
+        </Columns>
+    </UiDataGrid>
+</div>
+
+<div class="test-status" style="margin-top: 20px;" data-testid="status-interactive" data-ready="@(_interactiveInitialized ? "true" : "false")">
+    <p data-testid="status-loading">Loading: @_isLoading</p>
+    <p data-testid="status-request-count">Request Count: @_requestCount</p>
+    <p data-testid="status-search">Search: @(_lastSearch ?? "(none)")</p>
+    <p data-testid="status-sort">Sort: @(_lastSort ?? "(none)")</p>
+    <p data-testid="status-filter">Filter: @(_lastFilter ?? "(none)")</p>
+    <p data-testid="status-range">Range: @_lastStart</p>
+    @if (Scenario == "refresh")
+    {
+        <button type="button" data-testid="release-refresh" @onclick="ReleaseRefresh">Release range response</button>
+        <p data-testid="status-pending">Pending: @(_rangePending ? "yes" : "no")</p>
+    }
+</div>
+
+@code {
+    [SupplyParameterFromQuery]
+    public string? Scenario { get; set; }
+
+    private readonly TaskCompletionSource _releaseRange = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    private int _requestCount;
+    private bool _interactiveInitialized;
+    private bool _rangePending;
+    private IDataGridVirtualDataProvider<TestRecord>? _virtualProvider;
+    private IReadOnlyList<TestRecord>? _legacyItems;
+    private bool _isLoading => _rangePending;
+    private string? _lastSearch;
+    private string? _lastSort;
+    private string? _lastFilter;
+    private int _lastStart;
+
+    protected override void OnInitialized()
+    {
+        switch (Scenario)
+        {
+            case "legacy":
+                _legacyItems = CreateRecords().Take(25).Select(row => row.Id == 11
+                    ? row with { Name = "=1+1" } : row).ToList();
+                break;
+            case "unsupported":
+                _virtualProvider = new RangeOnlyProvider(this);
+                break;
+            default:
+                _virtualProvider = new ExportProvider(this);
+                break;
+        }
+    }
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (firstRender)
+        {
+            _interactiveInitialized = true;
+            StateHasChanged();
+        }
+    }
+
+    private void ReleaseRefresh() => _releaseRange.TrySetResult();
+
+    public sealed record TestRecord(int Id, string Name, string Category, decimal Value, DateTime Date);
+
+    private static IEnumerable<TestRecord> CreateRecords() => Enumerable.Range(1, 1000).Select(i =>
+        new TestRecord(i, $"Test Record {i:D4}", i % 3 == 0 ? "Alpha" : i % 3 == 1 ? "Beta" : "Gamma",
+            i * 10.5m, new DateTime(2026, 1, 1).AddDays(i - 1)));
+
+    private class RangeOnlyProvider(VirtualDataTest parent) : IDataGridVirtualDataProvider<TestRecord>
+    {
+        public async Task<DataGridVirtualResponse<TestRecord>> GetVirtualDataAsync(DataGridVirtualRequest request)
+        {
+            // Diagnostics report the request received by the provider, including requests still in flight.
+            if (parent._interactiveInitialized)
+            {
+                parent._requestCount++;
+                parent._lastSearch = request.GlobalSearch;
+                parent._lastSort = string.Join(", ", request.Sorts.Select(sort =>
+                    $"{sort.Field} ({(sort.Descending ? "desc" : "asc")})"));
+                parent._lastFilter = string.Join(", ", request.Filters.Select(filter =>
+                    $"{filter.Field} {filter.Operator} {filter.Value}"));
+                parent._lastStart = request.StartIndex;
+                await parent.InvokeAsync(parent.StateHasChanged);
+            }
+
+            if (parent.Scenario == "refresh" && request.GlobalSearch == "Gamma" &&
+                !parent._releaseRange.Task.IsCompleted)
+            {
+                parent._rangePending = true;
+                await parent.InvokeAsync(parent.StateHasChanged);
+                try
+                {
+                    await parent._releaseRange.Task.WaitAsync(request.CancellationToken);
+                }
+                finally
+                {
+                    parent._rangePending = false;
+                    await parent.InvokeAsync(parent.StateHasChanged);
+                }
+            }
+
+            request.CancellationToken.ThrowIfCancellationRequested();
+            var matches = Query(request).ToList();
+            return new() { Items = matches.Skip(request.StartIndex).Take(request.Count).ToList(), TotalCount = matches.Count };
+        }
+
+        protected static IEnumerable<TestRecord> Query(DataGridVirtualRequest request)
+        {
+            var rows = CreateRecords();
+            if (request.GlobalSearch is { } term)
+                rows = rows.Where(row => row.Name.Contains(term, StringComparison.OrdinalIgnoreCase) ||
+                                          row.Category.Contains(term, StringComparison.OrdinalIgnoreCase));
+
+            foreach (var filter in request.Filters.Where(filter => filter.Field == nameof(TestRecord.Category)))
+            {
+                var value = filter.Value?.ToString() ?? "";
+                rows = rows.Where(row => filter.Operator switch
+                {
+                    GridFilterOperator.Equals => row.Category.Equals(value, StringComparison.OrdinalIgnoreCase),
+                    GridFilterOperator.StartsWith => row.Category.StartsWith(value, StringComparison.OrdinalIgnoreCase),
+                    GridFilterOperator.EndsWith => row.Category.EndsWith(value, StringComparison.OrdinalIgnoreCase),
+                    _ => row.Category.Contains(value, StringComparison.OrdinalIgnoreCase)
+                });
+            }
+
+            IOrderedEnumerable<TestRecord>? ordered = null;
+            foreach (var sort in request.Sorts)
+            {
+                Func<TestRecord, IComparable> key = sort.Field switch
+                {
+                    nameof(TestRecord.Name) => row => row.Name,
+                    nameof(TestRecord.Category) => row => row.Category,
+                    nameof(TestRecord.Value) => row => row.Value,
+                    _ => row => row.Id
+                };
+                ordered = ordered == null
+                    ? sort.Descending ? rows.OrderByDescending(key) : rows.OrderBy(key)
+                    : sort.Descending ? ordered.ThenByDescending(key) : ordered.ThenBy(key);
+            }
+            return ordered ?? rows;
+        }
+    }
+
+    private sealed class ExportProvider(VirtualDataTest parent) : RangeOnlyProvider(parent),
+        IDataGridVirtualDataProvider<TestRecord>
+    {
+        public Task<DataGridExportResult<TestRecord>?> GetAllForExportAsync(DataGridVirtualRequest request)
+        {
+            request.CancellationToken.ThrowIfCancellationRequested();
+            return Task.FromResult<DataGridExportResult<TestRecord>?>(new() { Items = Query(request).ToList() });
+        }
+    }
+}

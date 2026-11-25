@@ -1,0 +1,65 @@
+@using static ChampUI.Components.Charts.ChartHelpers
+<div class="ui-donut @Class">
+    <div class="ui-donut__figure" style="width:@(Size)px;height:@(Size)px">
+        <svg class="ui-donut__svg" width="@Size" height="@Size" viewBox="0 0 @Size @Size" role="img" aria-label="@AriaLabel">
+            <circle class="ui-donut__track" cx="@F(Size / 2.0)" cy="@F(Size / 2.0)" r="@F(Radius)" stroke-width="@F(Thickness)" />
+            @{ double offset = 0; }
+            @for (var i = 0; i < Segments.Count; i++)
+            {
+                var seg = Segments[i];
+                var len = _total <= 0 ? 0 : seg.Value / _total * Circumference;
+                var gap = Segments.Count > 1 && len > 3 ? 3 : 0;
+                <circle class="ui-donut__ring" cx="@F(Size / 2.0)" cy="@F(Size / 2.0)" r="@F(Radius)" stroke-width="@F(Thickness)"
+                        stroke="@Color(seg.Color, i)" stroke-dasharray="@F(Math.Max(len - gap, 0)) @F(Circumference)" stroke-dashoffset="@F(-offset)">
+                    <title>@seg.Label: @ValueFormatter(seg.Value) (@Percent(seg.Value))</title>
+                </circle>
+                offset += len;
+            }
+        </svg>
+        <div class="ui-donut__center">
+            @if (CenterContent != null) { @CenterContent }
+            else
+            {
+                <span class="ui-donut__center-value">@(CenterValue ?? ValueFormatter(_total))</span>
+                @if (!string.IsNullOrEmpty(CenterLabel)) { <span class="ui-donut__center-label">@CenterLabel</span> }
+            }
+        </div>
+    </div>
+    @if (ShowLegend)
+    {
+        <ul class="ui-donut__legend">
+            @for (var i = 0; i < Segments.Count; i++)
+            {
+                var seg = Segments[i];
+                <li>
+                    <span class="ui-chart__swatch" style="background:@Color(seg.Color, i)"></span>
+                    <span class="ui-donut__legend-label">@seg.Label</span>
+                    <span class="ui-donut__legend-value">@ValueFormatter(seg.Value)</span>
+                    <span class="ui-donut__legend-pct">@Percent(seg.Value)</span>
+                </li>
+            }
+        </ul>
+    }
+</div>
+
+@code {
+    private double _total;
+
+    [Parameter, EditorRequired] public IReadOnlyList<ChartSegment> Segments { get; set; } = Array.Empty<ChartSegment>();
+    [Parameter] public int Size { get; set; } = 188;
+    [Parameter] public int Thickness { get; set; } = 22;
+    [Parameter] public string? CenterValue { get; set; }
+    [Parameter] public string? CenterLabel { get; set; }
+    [Parameter] public RenderFragment? CenterContent { get; set; }
+    [Parameter] public bool ShowLegend { get; set; } = true;
+    [Parameter] public string AriaLabel { get; set; } = "Donut chart";
+    [Parameter] public Func<double, string> ValueFormatter { get; set; } = DefaultValue;
+    [Parameter] public string? Class { get; set; }
+
+    private double Radius => (Size - Thickness) / 2.0;
+    private double Circumference => 2 * Math.PI * Radius;
+
+    protected override void OnParametersSet() => _total = Segments.Sum(s => s.Value);
+
+    private string Percent(double v) => _total <= 0 ? "0%" : (v / _total).ToString("P0", System.Globalization.CultureInfo.CurrentCulture);
+}

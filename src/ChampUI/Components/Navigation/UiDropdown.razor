@@ -1,0 +1,36 @@
+<div class="ui-dropdown @Class" @onkeydown="OnKeyDown">
+    <button type="button" class="ui-dropdown__trigger @TriggerClass" aria-haspopup="menu" aria-expanded="@(_open ? "true" : "false")"
+            aria-label="@Label" @onclick="ToggleAsync">
+        @Trigger
+    </button>
+    @if (_open)
+    {
+        <div class="ui-dropdown__backdrop" @onclick="CloseAsync"></div>
+        <div class="ui-dropdown__panel ui-dropdown__panel--@Align.Css()" role="menu" @onclick="OnPanelClick">
+            @ChildContent
+        </div>
+    }
+</div>
+
+@code {
+    private bool _open;
+
+    /// <summary>The always-visible trigger content (text, icon, avatar...).</summary>
+    [Parameter] public RenderFragment? Trigger { get; set; }
+    /// <summary>The popover content.</summary>
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+    [Parameter] public UiAlign Align { get; set; } = UiAlign.Start;
+    [Parameter] public string TriggerClass { get; set; } = "ui-btn ui-btn--secondary";
+    [Parameter] public string? Label { get; set; }
+    [Parameter] public string? Class { get; set; }
+    /// <summary>Close the popover when something inside it is clicked.</summary>
+    [Parameter] public bool CloseOnSelect { get; set; } = true;
+    [Parameter] public EventCallback<bool> OpenChanged { get; set; }
+
+    public bool IsOpen => _open;
+
+    private async Task ToggleAsync() { _open = !_open; await OpenChanged.InvokeAsync(_open); }
+    public async Task CloseAsync() { if (!_open) return; _open = false; await OpenChanged.InvokeAsync(false); }
+    private async Task OnPanelClick() { if (CloseOnSelect) await CloseAsync(); }
+    private async Task OnKeyDown(KeyboardEventArgs e) { if (e.Key == "Escape") await CloseAsync(); }
+}

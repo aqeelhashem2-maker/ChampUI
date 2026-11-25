@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Independent ChampUI consumer</title>
+    <base href="/" />
+    <link rel="stylesheet" href="@Assets["_content/ChampUI/champui.css"]" />
+</head>
+<body>
+    <Router AppAssembly="typeof(App).Assembly">
+        <Found Context="route">
+            <RouteView RouteData="route" />
+        </Found>
+    </Router>
+    <script type="module" src="@Assets["_content/ChampUI/js/champui.js"]"></script>
+    <script src="@Assets["_framework/blazor.web.js"]"></script>
+</body>
+</html>

@@ -1,0 +1,112 @@
+@page "/virtualize-smoke"
+@using Microsoft.AspNetCore.Components.Web.Virtualization
+@rendermode InteractiveServer
+
+<PageTitle>Virtualize Smoke Test</PageTitle>
+
+<div class="virtualize-smoke-container" style="padding: 40px; max-width: 800px; margin: 0 auto;">
+    <h1>Blazor Virtualize Component Smoke Test</h1>
+    
+    <div class="status-panel" style="background: var(--ui-surface); padding: 20px; border-radius: 8px; margin: 20px 0;">
+        <h2>Provider Status</h2>
+        <p id="provider-calls" data-testid="provider-calls">Provider Calls: @_providerCallCount</p>
+        <p id="total-items" data-testid="total-items">Total Items: @_totalItems</p>
+        <p id="last-request" data-testid="last-request">Last Request: StartIndex=@_lastStartIndex, Count=@_lastCount</p>
+        <p id="loading-state" data-testid="loading-state">Loading: @_isLoading</p>
+    </div>
+
+    <div class="virtualize-container" style="background: var(--ui-surface); padding: 20px; border-radius: 8px; margin: 20px 0;">
+        <h2>Virtualized List (1000 items)</h2>
+        <div data-testid="virtualize-wrapper" style="height: 400px; overflow-y: auto; border: 1px solid var(--ui-border);">
+            <Virtualize ItemsProvider="LoadItems" ItemSize="40">
+                <ItemContent Context="item">
+                    <div class="virtual-item" data-testid="virtual-item-@item.Id" style="height: 40px; padding: 10px; border-bottom: 1px solid var(--ui-border);">
+                        <strong>ID @item.Id:</strong> @item.Name - @item.Description
+                    </div>
+                </ItemContent>
+                <Placeholder Context="placeholderContext">
+                    <div class="virtual-placeholder" style="height: 40px; padding: 10px; background: var(--ui-surface-hover);">
+                        Loading item @placeholderContext.Index...
+                    </div>
+                </Placeholder>
+            </Virtualize>
+        </div>
+    </div>
+
+    <div class="controls-panel" style="background: var(--ui-surface); padding: 20px; border-radius: 8px; margin: 20px 0;">
+        <button id="reset-stats" 
+                data-testid="reset-stats"
+                @onclick="ResetStats"
+                class="ui-btn ui-btn--secondary">
+            Reset Statistics
+        </button>
+    </div>
+</div>
+
+@code {
+    // B-03 fix: Use instance field with preservation across interactive re-render
+    private int _providerCallCount = 0;
+    private int _totalItems = 1000;
+    private int _lastStartIndex = 0;
+    private int _lastCount = 0;
+    private bool _isLoading = false;
+    
+    // Track if we've completed interactive render to preserve counter
+    private bool _interactiveInitialized = false;
+
+    public class VirtualItem
+    {
+        public int Id { get; set; }
+        public string Name { get; set; } = "";
+        public string Description { get; set; } = "";
+    }
+
+    private async ValueTask<ItemsProviderResult<VirtualItem>> LoadItems(ItemsProviderRequest request)
+    {
+        // Only increment after interactive initialization to avoid double-counting prerender
+        if (_interactiveInitialized)
+        {
+            _providerCallCount++;
+        }
+        
+        _lastStartIndex = request.StartIndex;
+        _lastCount = request.Count;
+        _isLoading = true;
+        StateHasChanged();
+
+        await Task.Delay(50); // Simulate network delay
+
+        var startIndex = request.StartIndex;
+        var count = Math.Min(request.Count, _totalItems - startIndex);
+        
+        var items = Enumerable.Range(startIndex, count)
+            .Select(i => new VirtualItem
+            {
+                Id = i,
+                Name = $"Item {i:D4}",
+                Description = $"This is virtual item number {i}"
+            })
+            .ToList();
+
+        _isLoading = false;
+        StateHasChanged();
+
+        return new ItemsProviderResult<VirtualItem>(items, _totalItems);
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            _interactiveInitialized = true;
+        }
+        await base.OnAfterRenderAsync(firstRender);
+    }
+
+    private void ResetStats()
+    {
+        _providerCallCount = 0;
+        _lastStartIndex = 0;
+        _lastCount = 0;
+    }
+}

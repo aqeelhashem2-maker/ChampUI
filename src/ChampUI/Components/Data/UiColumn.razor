@@ -1,0 +1,77 @@
+@typeparam TItem
+@implements IDisposable
+@* A column definition. Renders nothing itself — it registers with the enclosing UiDataGrid. *@
+
+@code {
+    private string _snapshot = "";
+    private bool _visible = true;
+
+    [CascadingParameter] public UiDataGrid<TItem>? Grid { get; set; }
+
+    [Parameter, EditorRequired] public string Title { get; set; } = "";
+    /// <summary>Selector used for default rendering, sorting and searching.</summary>
+    [Parameter] public Func<TItem, object?>? Value { get; set; }
+    /// <summary>Optional format string applied to <see cref="IFormattable"/> values (e.g. "d", "N0").</summary>
+    [Parameter] public string? Format { get; set; }
+    /// <summary>Custom cell content. Overrides default rendering (sorting/searching still use <see cref="Value"/>).</summary>
+    [Parameter] public RenderFragment<TItem>? Template { get; set; }
+    /// <summary>Custom header template. Overrides the default header rendering.</summary>
+    [Parameter] public RenderFragment? HeaderTemplate { get; set; }
+    /// <summary>Inline edit template. Shown when the row is in edit mode.</summary>
+    [Parameter] public RenderFragment<TItem>? EditTemplate { get; set; }
+    [Parameter] public bool Sortable { get; set; } = true;
+    [Parameter] public bool Searchable { get; set; } = true;
+    [Parameter] public bool Filterable { get; set; }
+    /// <summary>HTML input type for the column filter ("text", "number", "date"). Defaults to "text".</summary>
+    [Parameter] public string FilterType { get; set; } = "text";
+    [Parameter] public string? Width { get; set; }
+    [Parameter] public string? MinWidth { get; set; }
+    [Parameter] public UiAlign Align { get; set; } = UiAlign.Start;
+    /// <summary>Hide this column on narrow screens.</summary>
+    [Parameter] public bool HideOnMobile { get; set; }
+    /// <summary>Field name used in server-side sort/filter descriptors. Defaults to <see cref="Title"/>.</summary>
+    [Parameter] public string? Field { get; set; }
+    /// <summary>Whether this column is currently visible. Can be toggled by the column chooser.</summary>
+    public bool Visible
+    {
+        get => _visible;
+        set
+        {
+            if (_visible == value) return;
+            _visible = value;
+            Grid?.RequestRefresh();
+        }
+    }
+
+    protected override void OnInitialized()
+    {
+        if (Grid is null) throw new InvalidOperationException("UiColumn must be placed inside the Columns of a UiDataGrid.");
+        Grid.RegisterColumn(this);
+        _snapshot = Snapshot();
+    }
+
+    protected override void OnParametersSet()
+    {
+        var now = Snapshot();
+        if (now == _snapshot) return;
+        _snapshot = now;
+        Grid?.ColumnChanged();
+    }
+
+    private string Snapshot() => $"{Title}|{Width}|{MinWidth}|{Align}|{HideOnMobile}|{Sortable}|{Searchable}|{Format}|{Filterable}|{FilterType}|{Field}";
+
+    internal object? Raw(TItem item) => Value?.Invoke(item);
+
+    internal string Display(TItem item)
+    {
+        var raw = Raw(item);
+        return raw switch
+        {
+            null => "",
+            IFormattable f when !string.IsNullOrEmpty(Format) => f.ToString(Format, System.Globalization.CultureInfo.CurrentCulture),
+            _ => raw.ToString() ?? ""
+        };
+    }
+
+    public void Dispose() => Grid?.UnregisterColumn(this);
+}

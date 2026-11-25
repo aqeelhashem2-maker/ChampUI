@@ -1,0 +1,44 @@
+<div class="ui-field @Class">
+    @if (!string.IsNullOrEmpty(Label)) { <label class="ui-field__label" for="@_id">@Label</label> }
+    <div class="ui-input @(string.IsNullOrEmpty(Error) ? null : "ui-input--invalid") @(Disabled ? "ui-input--disabled" : null) @(Small ? "ui-input--sm" : null)">
+        @if (!string.IsNullOrEmpty(Icon)) { <UiIcon Name="@Icon" Size="16" /> }
+        <input id="@_id" type="@Type" value="@Value" placeholder="@Placeholder" disabled="@Disabled" autocomplete="@AutoComplete"
+               aria-invalid="@(string.IsNullOrEmpty(Error) ? null : "true")" aria-describedby="@(DescribedBy)"
+               @oninput="OnInput" @onkeydown="OnKeyDown" @attributes="Attributes" />
+    </div>
+    @if (!string.IsNullOrEmpty(Error)) { <span class="ui-field__error" id="@_id-msg">@Error</span> }
+    else if (!string.IsNullOrEmpty(HelpText)) { <span class="ui-field__help" id="@_id-msg">@HelpText</span> }
+</div>
+
+@code {
+    private readonly string _id = "tf-" + Guid.NewGuid().ToString("N")[..8];
+
+    [Parameter] public string? Value { get; set; }
+    [Parameter] public EventCallback<string?> ValueChanged { get; set; }
+    [Parameter] public string? Label { get; set; }
+    [Parameter] public string? Placeholder { get; set; }
+    [Parameter] public string Type { get; set; } = "text";
+    [Parameter] public string? Icon { get; set; }
+    [Parameter] public string? HelpText { get; set; }
+    [Parameter] public string? Error { get; set; }
+    [Parameter] public bool Disabled { get; set; }
+    [Parameter] public bool Small { get; set; }
+    [Parameter] public string AutoComplete { get; set; } = "off";
+    [Parameter] public string? Class { get; set; }
+    /// <summary>Raised when Enter is pressed.</summary>
+    [Parameter] public EventCallback<string?> OnEnter { get; set; }
+    [Parameter(CaptureUnmatchedValues = true)] public Dictionary<string, object>? Attributes { get; set; }
+
+    private string? DescribedBy => string.IsNullOrEmpty(Error) && string.IsNullOrEmpty(HelpText) ? null : _id + "-msg";
+
+    private async Task OnInput(ChangeEventArgs e)
+    {
+        Value = e.Value?.ToString();
+        await ValueChanged.InvokeAsync(Value);
+    }
+
+    private async Task OnKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter") await OnEnter.InvokeAsync(Value);
+    }
+}

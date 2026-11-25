@@ -1,0 +1,18 @@
+<NavLink class="@("ui-nav-item " + Class)" href="@Href" Match="@Match" ActiveClass="is-active" title="@Text" @onclick="OnClicked">
+    <UiIcon Name="@Icon" Size="20" />
+    <span class="ui-nav-item__text">@Text</span>
+    @if (!string.IsNullOrEmpty(Badge)) { <span class="ui-nav-item__badge">@Badge</span> }
+</NavLink>
+
+@code {
+    [CascadingParameter] private UiAppShell? Shell { get; set; }
+
+    [Parameter, EditorRequired] public string Href { get; set; } = "";
+    [Parameter, EditorRequired] public string Text { get; set; } = "";
+    [Parameter] public string Icon { get; set; } = "layers";
+    [Parameter] public string? Badge { get; set; }
+    [Parameter] public NavLinkMatch Match { get; set; } = NavLinkMatch.Prefix;
+    [Parameter] public string? Class { get; set; }
+
+    private void OnClicked() => Shell?.CloseNav();
+}

@@ -1,0 +1,46 @@
+@inherits LayoutComponentBase
+@inject UiThemeState Theme
+
+<UiAppShell Class="showcase-shell" Direction="@(_arabic ? UiTextDirection.Rtl : UiTextDirection.Ltr)" Language="@(_arabic ? "ar" : "en")">
+    <Sidebar>
+        <UiSidebar Label="@Copy.Navigation.For(_arabic)">
+            <Brand>
+                <a class="showcase-brand" href="/">ChampUI Showcase</a>
+            </Brand>
+            <ChildContent>
+                <UiSidebarItem Href="/" Text="@Copy.Foundations.For(_arabic)" Icon="layers" />
+                <UiSidebarItem Href="/forms" Text="@Copy.Forms.For(_arabic)" Icon="edit" />
+                <UiSidebarItem Href="/data" Text="@Copy.Data.For(_arabic)" Icon="file-spreadsheet" />
+                <UiSidebarItem Href="/charts" Text="@Copy.Charts.For(_arabic)" Icon="bar-chart" />
+            </ChildContent>
+            <Footer>Developed by Sadeem Systems</Footer>
+        </UiSidebar>
+    </Sidebar>
+    <Topbar>
+        <UiTopbar MenuLabel="@Copy.Navigation.For(_arabic)">
+            <End>
+                <UiButton Size="UiSize.Small" Disabled="@(!_ready)" OnClick="Theme.Toggle">@Copy.Theme.For(_arabic)</UiButton>
+                <UiButton Size="UiSize.Small" Disabled="@(!_ready)" OnClick="() => _arabic = !_arabic">@Copy.Language.For(_arabic)</UiButton>
+            </End>
+        </UiTopbar>
+    </Topbar>
+    <ChildContent>
+        @if (_arabic)
+        {
+            <p class="showcase-rtl-note" lang="ar">معرض مكوّنات ChampUI باللغة العربية</p>
+        }
+        @Body
+    </ChildContent>
+</UiAppShell>
+
+@code {
+    private bool _arabic;
+    private bool _ready;
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (!firstRender) return;
+        _ready = true;
+        StateHasChanged();
+    }
+}

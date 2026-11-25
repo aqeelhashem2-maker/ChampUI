@@ -1,0 +1,74 @@
+@using static ChampUI.Components.Charts.ChartHelpers
+<div class="ui-chart @Class">
+    <div class="ui-chart__scroll">
+        <svg class="ui-chart__svg" viewBox="0 0 @W @Height" role="img" aria-label="@AriaLabel" preserveAspectRatio="xMidYMid meet">
+            @for (var t = 0; t <= 4; t++)
+            {
+                var value = t * _step; // local copy: the child fragment below runs after the loop variable has advanced
+                var y = Y(value);
+                <line class="ui-chart__grid" x1="@F(MarginLeft)" x2="@F(W - MarginRight)" y1="@F(y)" y2="@F(y)" />
+                <ChartText X="@F(MarginLeft - 10)" Y="@F(y + 4)" Anchor="end">@AxisFormatter(value)</ChartText>
+            }
+            @for (var i = 0; i < Labels.Count; i++)
+            {
+                var index = i;
+                var groupX = MarginLeft + index * GroupWidth;
+                var barW = Math.Min(34, GroupWidth * 0.62 / Math.Max(1, Series.Count));
+                var totalW = barW * Series.Count + 4 * (Series.Count - 1);
+                var startX = groupX + (GroupWidth - totalW) / 2;
+                <g class="ui-chart__col">
+                    <title>@Tooltip(index)</title>
+                    <rect class="ui-chart__hit" x="@F(groupX)" y="@F(MarginTop)" width="@F(GroupWidth)" height="@F(Height - MarginTop - MarginBottom)" />
+                    @for (var s = 0; s < Series.Count; s++)
+                    {
+                        if (index >= Series[s].Values.Count) { continue; }
+                        var value = Series[s].Values[index];
+                        var top = Y(value);
+                        var h = Math.Max(0, Height - MarginBottom - top);
+                        <rect class="ui-chart__bar" x="@F(startX + s * (barW + 4))" y="@F(top)" width="@F(barW)" height="@F(h)" rx="@F(Math.Min(5, barW / 2))" style="fill:@Color(Series[s].Color, s)" />
+                    }
+                </g>
+                <ChartText X="@F(groupX + GroupWidth / 2)" Y="@F(Height - 8)" Anchor="middle">@Labels[index]</ChartText>
+            }
+        </svg>
+    </div>
+    @if (ShowLegend && Series.Count > 1)
+    {
+        <div class="ui-chart__legend">
+            @for (var s = 0; s < Series.Count; s++)
+            {
+                <span class="ui-chart__legend-item"><span class="ui-chart__swatch" style="background:@Color(Series[s].Color, s)"></span>@Series[s].Name</span>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    private const double W = 720, MarginLeft = 48, MarginRight = 14, MarginTop = 14, MarginBottom = 30;
+    private double _step = 1, _max = 4;
+
+    [Parameter, EditorRequired] public IReadOnlyList<ChartSeries> Series { get; set; } = Array.Empty<ChartSeries>();
+    [Parameter, EditorRequired] public IReadOnlyList<string> Labels { get; set; } = Array.Empty<string>();
+    [Parameter] public double Height { get; set; } = 300;
+    [Parameter] public bool ShowLegend { get; set; } = true;
+    [Parameter] public string AriaLabel { get; set; } = "Bar chart";
+    [Parameter] public Func<double, string> ValueFormatter { get; set; } = DefaultValue;
+    [Parameter] public Func<double, string> AxisFormatter { get; set; } = CompactAxis;
+    [Parameter] public string? Class { get; set; }
+
+    private double GroupWidth => Labels.Count == 0 ? 0 : (W - MarginLeft - MarginRight) / Labels.Count;
+
+    protected override void OnParametersSet()
+    {
+        var max = Series.Count == 0 ? 0 : Series.Max(s => s.Values.Count == 0 ? 0 : s.Values.Max());
+        (_step, _max) = NiceScale(max);
+    }
+
+    private double Y(double v) => MarginTop + (Height - MarginTop - MarginBottom) * (1 - v / _max);
+
+    private string Tooltip(int i)
+    {
+        var parts = Series.Where(s => i < s.Values.Count).Select(s => $"{s.Name}: {ValueFormatter(s.Values[i])}");
+        return $"{Labels[i]}\n{string.Join("\n", parts)}";
+    }
+}

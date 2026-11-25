@@ -1,0 +1,20 @@
+<button type="@Type" class="ui-btn ui-btn--@Variant.Css() ui-btn--@Size.Css() @Class"
+        disabled="@(Disabled || Loading)" aria-busy="@(Loading ? "true" : null)"
+        @onclick="OnClick" @attributes="Attributes">
+    @if (Loading) { <span class="ui-spinner ui-spinner--sm" aria-hidden="true"></span> }
+    else if (!string.IsNullOrEmpty(Icon)) { <UiIcon Name="@Icon" Size="@(Size == UiSize.Small ? 15 : 17)" /> }
+    @ChildContent
+</button>
+
+@code {
+    [Parameter] public UiVariant Variant { get; set; } = UiVariant.Primary;
+    [Parameter] public UiSize Size { get; set; } = UiSize.Medium;
+    [Parameter] public string Type { get; set; } = "button";
+    [Parameter] public string? Icon { get; set; }
+    [Parameter] public bool Loading { get; set; }
+    [Parameter] public bool Disabled { get; set; }
+    [Parameter] public string? Class { get; set; }
+    [Parameter] public EventCallback<MouseEventArgs> OnClick { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+    [Parameter(CaptureUnmatchedValues = true)] public Dictionary<string, object>? Attributes { get; set; }
+}

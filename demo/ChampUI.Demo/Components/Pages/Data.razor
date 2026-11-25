@@ -1,0 +1,39 @@
+@page "/data"
+@using ChampUI.Demo.Data
+
+<PageTitle>Data · ChampUI Showcase</PageTitle>
+<UiPageHeader Title="Project data" Subtitle="Switch data sources, select records and export a query." />
+<UiCard BodyClass="showcase-card-body">
+    <UiSelect TValue="string" Options="_modes" Label="Data source" @bind-Value="_mode" />
+    <UiDataGrid @key="_mode" TItem="ProjectRow" Items="@(_mode == "Local" ? _rows : null)"
+                ServerProvider="@(_mode == "Paged" ? _provider : null)" VirtualProvider="@(_mode == "Virtual" ? _provider : null)"
+                PageSize="8" VirtualViewportHeight="360px" ShowColumnToggle="true" MultiSort="false"
+                RowKeySelector="row => row.Id" AllowCsvExport="true" AllowXlsxExport="true" Selectable="true"
+                EditMode="@(_mode == "Local" ? UiDataGridEditMode.Inline : UiDataGridEditMode.None)" OnRowSaved="Save">
+        <Columns>
+            <UiColumn TItem="ProjectRow" Title="ID" Field="Id" Value="row => row.Id" Sortable="true" />
+            <UiColumn TItem="ProjectRow" Title="Name" Field="Name" Value="row => row.Name" Sortable="true" Searchable="true">
+                <EditTemplate><UiTextField @bind-Value="context.Name" aria-label="Edit project name" /></EditTemplate>
+            </UiColumn>
+            <UiColumn TItem="ProjectRow" Title="Category" Field="Category" Value="row => row.Category" Filterable="true" Searchable="true" />
+        </Columns>
+    </UiDataGrid>
+</UiCard>
+
+@code {
+    private string _mode = "Local";
+    private readonly List<ProjectRow> _rows = ProjectData.CreateRows();
+    private readonly ProjectData _provider = new();
+    private readonly SelectOption<string>[] _modes =
+    [
+        new("Local", "Local records"),
+        new("Paged", "Paged provider"),
+        new("Virtual", "Virtual range provider")
+    ];
+
+    private void Save(ProjectRow updated)
+    {
+        var row = _rows.Find(row => row.Id == updated.Id);
+        if (row != null) row.Name = updated.Name;
+    }
+}

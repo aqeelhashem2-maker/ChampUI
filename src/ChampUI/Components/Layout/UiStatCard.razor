@@ -1,0 +1,51 @@
+<section class="ui-card ui-stat @(Interactive ? "ui-card--interactive" : null) @Class" aria-label="@Label">
+    <div class="ui-stat__top">
+        <span class="ui-stat__label">@Label</span>
+        @if (!string.IsNullOrEmpty(Icon)) { <span class="ui-stat__icon"><UiIcon Name="@Icon" Size="19" /></span> }
+    </div>
+    <div class="ui-stat__value">@Value</div>
+    <div class="ui-stat__bottom">
+        <div class="ui-stat__meta">
+            @if (!string.IsNullOrEmpty(Delta))
+            {
+                <span class="ui-trend ui-trend--@Trend.ToString().ToLowerInvariant()">
+                    @if (Trend != UiTrend.Neutral) { <UiIcon Name="@(Trend == UiTrend.Up ? "arrow-up" : "arrow-down")" Size="12" /> }
+                    @Delta
+                </span>
+            }
+            @if (!string.IsNullOrEmpty(Hint)) { <span>@Hint</span> }
+        </div>
+        @if (Spark is { Count: > 1 })
+        {
+            <svg class="ui-stat__spark" viewBox="0 0 84 28" preserveAspectRatio="none" aria-hidden="true">
+                <polyline points="@SparkPoints" />
+            </svg>
+        }
+    </div>
+</section>
+
+@code {
+    [Parameter, EditorRequired] public string Label { get; set; } = "";
+    [Parameter, EditorRequired] public string Value { get; set; } = "";
+    [Parameter] public string? Icon { get; set; }
+    [Parameter] public string? Delta { get; set; }
+    [Parameter] public UiTrend Trend { get; set; } = UiTrend.Neutral;
+    [Parameter] public string? Hint { get; set; }
+    /// <summary>Optional mini trend line.</summary>
+    [Parameter] public IReadOnlyList<double>? Spark { get; set; }
+    [Parameter] public bool Interactive { get; set; }
+    [Parameter] public string? Class { get; set; }
+
+    private string SparkPoints
+    {
+        get
+        {
+            var values = Spark!;
+            double min = values.Min(), max = values.Max(), range = max - min;
+            if (range <= 0) range = 1;
+            var inv = System.Globalization.CultureInfo.InvariantCulture;
+            return string.Join(' ', values.Select((v, i) =>
+                $"{(i * 84.0 / (values.Count - 1)).ToString("0.##", inv)},{(26 - (v - min) / range * 24).ToString("0.##", inv)}"));
+        }
+    }
+}

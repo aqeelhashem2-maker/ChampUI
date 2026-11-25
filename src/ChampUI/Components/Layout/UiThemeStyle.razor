@@ -1,0 +1,31 @@
+@inject ChampUiOptions Options
+@((MarkupString)Css)
+
+@code {
+    // Emits the application's design-token overrides. Rendered inside UiAppShell after the library
+    // stylesheet, so these declarations take precedence over the neutral defaults.
+    private string Css
+    {
+        get
+        {
+            var sb = new System.Text.StringBuilder("<style>");
+            Append(sb, ".ui-shell", Options.SharedTokens);
+            Append(sb, ".ui-shell[data-theme=\"light\"]", Options.LightTokens);
+            Append(sb, ".ui-shell[data-theme=\"dark\"]", Options.DarkTokens);
+            return sb.Append("</style>").ToString();
+        }
+    }
+
+    private static void Append(System.Text.StringBuilder sb, string selector, Dictionary<string, string> tokens)
+    {
+        if (tokens.Count == 0) return;
+        sb.Append(selector).Append('{');
+        foreach (var (key, value) in tokens)
+        {
+            // Defensive: tokens come from application code, but never allow breaking out of the declaration.
+            var safe = value.Replace(";", "").Replace("{", "").Replace("}", "").Replace("<", "");
+            sb.Append(ChampUiOptions.Normalize(key)).Append(':').Append(safe).Append(';');
+        }
+        sb.Append('}');
+    }
+}

@@ -1,0 +1,14 @@
+<svg class="ui-icon @(Flip ? "ui-icon--flip" : null) @Class" width="@Size" height="@Size" viewBox="0 0 24 24"
+     aria-hidden="@(string.IsNullOrEmpty(Label) ? "true" : null)" role="@(string.IsNullOrEmpty(Label) ? null : "img")" aria-label="@Label" focusable="false">
+    @((MarkupString)(UiIcons.Get(Name) ?? string.Empty))
+</svg>
+
+@code {
+    /// <summary>Icon name from <see cref="UiIcons"/>.</summary>
+    [Parameter, EditorRequired] public string Name { get; set; } = "";
+    [Parameter] public int Size { get; set; } = 18;
+    /// <summary>Mirror the icon horizontally in right-to-left layouts (for directional icons such as chevrons).</summary>
+    [Parameter] public bool Flip { get; set; }
+    [Parameter] public string? Label { get; set; }
+    [Parameter] public string? Class { get; set; }
+}

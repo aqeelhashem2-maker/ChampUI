@@ -1,0 +1,22 @@
+<label class="ui-check @Class">
+    <input type="checkbox" checked="@Checked" disabled="@Disabled" @onchange="OnChange" @attributes="Attributes" />
+    <span class="ui-check__box" aria-hidden="true"><UiIcon Name="check" Size="14" /></span>
+    @if (!string.IsNullOrEmpty(Label)) { <span>@Label</span> }
+    @ChildContent
+</label>
+
+@code {
+    [Parameter] public bool Checked { get; set; }
+    [Parameter] public EventCallback<bool> CheckedChanged { get; set; }
+    [Parameter] public string? Label { get; set; }
+    [Parameter] public bool Disabled { get; set; }
+    [Parameter] public string? Class { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+    [Parameter(CaptureUnmatchedValues = true)] public Dictionary<string, object>? Attributes { get; set; }
+
+    private async Task OnChange(ChangeEventArgs e)
+    {
+        Checked = e.Value is true;
+        await CheckedChanged.InvokeAsync(Checked);
+    }
+}

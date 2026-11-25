@@ -1,0 +1,46 @@
+@typeparam TValue
+<div class="ui-field @Class">
+    @if (!string.IsNullOrEmpty(Label)) { <label class="ui-field__label" for="@_id">@Label</label> }
+    <div class="ui-input ui-input--select @(Disabled ? "ui-input--disabled" : null) @(Small ? "ui-input--sm" : null)">
+        @if (!string.IsNullOrEmpty(Icon)) { <UiIcon Name="@Icon" Size="16" /> }
+        <select id="@_id" disabled="@Disabled" aria-label="@(string.IsNullOrEmpty(Label) ? AriaLabel : null)" @onchange="OnChange">
+            @for (var i = 0; i < _options.Count; i++)
+            {
+                var option = _options[i];
+                <option value="@i" selected="@IsSelected(option)">@option.Text</option>
+            }
+        </select>
+        <span class="ui-input__caret"><UiIcon Name="chevron-down" Size="16" /></span>
+    </div>
+    @if (!string.IsNullOrEmpty(HelpText)) { <span class="ui-field__help">@HelpText</span> }
+</div>
+
+@code {
+    private readonly string _id = "sel-" + Guid.NewGuid().ToString("N")[..8];
+    private List<SelectOption<TValue>> _options = new();
+
+    [Parameter, EditorRequired] public IEnumerable<SelectOption<TValue>> Options { get; set; } = Array.Empty<SelectOption<TValue>>();
+    [Parameter] public TValue? Value { get; set; }
+    [Parameter] public EventCallback<TValue> ValueChanged { get; set; }
+    [Parameter] public string? Label { get; set; }
+    [Parameter] public string? Icon { get; set; }
+    /// <summary>Accessible name used when no visible <see cref="Label"/> is shown.</summary>
+    [Parameter] public string? AriaLabel { get; set; }
+    [Parameter] public string? HelpText { get; set; }
+    [Parameter] public bool Disabled { get; set; }
+    [Parameter] public bool Small { get; set; }
+    [Parameter] public string? Class { get; set; }
+
+    protected override void OnParametersSet() => _options = Options.ToList();
+
+    private bool IsSelected(SelectOption<TValue> option) => System.Collections.Generic.EqualityComparer<TValue>.Default.Equals(option.Value, Value);
+
+    private async Task OnChange(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out var index) && index >= 0 && index < _options.Count)
+        {
+            Value = _options[index].Value;
+            await ValueChanged.InvokeAsync(Value);
+        }
+    }
+}

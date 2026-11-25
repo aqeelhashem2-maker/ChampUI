@@ -1,0 +1,19 @@
+<nav class="ui-breadcrumb @Class" aria-label="Breadcrumb">
+    <ol>
+        @for (var i = 0; i < Items.Count; i++)
+        {
+            var item = Items[i];
+            var last = i == Items.Count - 1;
+            <li>
+                @if (!last && !string.IsNullOrEmpty(item.Href)) { <a href="@item.Href">@item.Text</a> }
+                else { <span aria-current="@(last ? "page" : null)">@item.Text</span> }
+                @if (!last) { <span class="ui-breadcrumb__sep" aria-hidden="true"><UiIcon Name="chevron-right" Size="14" /></span> }
+            </li>
+        }
+    </ol>
+</nav>
+
+@code {
+    [Parameter, EditorRequired] public IReadOnlyList<BreadcrumbItem> Items { get; set; } = Array.Empty<BreadcrumbItem>();
+    [Parameter] public string? Class { get; set; }
+}

@@ -1,0 +1,33 @@
+@* UiFormField — a generic wrapper that provides consistent label, hint, validation and layout
+   for any child form control. Use it to build custom inputs that follow the same design conventions. *@
+<div class="ui-field @Class" role="group" aria-labelledby="@(string.IsNullOrEmpty(Label) ? null : _id)">
+    @if (!string.IsNullOrEmpty(Label))
+    {
+        <label class="ui-field__label" id="@_id">
+            @Label
+            @if (Required) { <span class="ui-field__required" aria-hidden="true">*</span> }
+        </label>
+    }
+    <div class="ui-field__control">
+        @ChildContent
+    </div>
+    @if (!string.IsNullOrEmpty(Error))
+    {
+        <span class="ui-field__error" role="alert">@Error</span>
+    }
+    else if (!string.IsNullOrEmpty(HelpText))
+    {
+        <span class="ui-field__help">@HelpText</span>
+    }
+</div>
+
+@code {
+    private readonly string _id = "ff-" + Guid.NewGuid().ToString("N")[..8];
+
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+    [Parameter] public string? Label { get; set; }
+    [Parameter] public string? HelpText { get; set; }
+    [Parameter] public string? Error { get; set; }
+    [Parameter] public bool Required { get; set; }
+    [Parameter] public string? Class { get; set; }
+}

@@ -1,0 +1,75 @@
+@page "/row-identity-test"
+@using ChampUI.Core.Interfaces
+@using ChampUI.Core.Models
+@using ChampUI.Components.Data
+@using ChampUI.Models
+
+<h1>Row identity test</h1>
+<button type="button" disabled="@(!_interactive)" @onclick="ReplaceRows">Replace instances</button>
+<UiDataGrid TItem="TestRow" Items="_items" VirtualProvider="_provider" VirtualizationMode="Mode"
+            VirtualViewportHeight="360px" RowKeySelector="@(row => row.Key!)" Selectable="true">
+    <Columns>
+        <UiColumn TItem="TestRow" Title="Name" Field="Name" Value="@(row => row.Name)" Sortable="true" Searchable="true" />
+    </Columns>
+</UiDataGrid>
+
+@code {
+    [SupplyParameterFromQuery]
+    public string? ModeName { get; set; }
+
+    private bool _interactive;
+    private IReadOnlyList<TestRow>? _items;
+    private RowProvider? _provider;
+    private UiDataGridVirtualization Mode => ModeName == "page" ? UiDataGridVirtualization.Enabled : UiDataGridVirtualization.None;
+
+    protected override void OnInitialized() => ReplaceRows();
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (firstRender)
+        {
+            _interactive = true;
+            StateHasChanged();
+        }
+    }
+
+    private void ReplaceRows()
+    {
+        if (ModeName == "provider")
+            _provider = new RowProvider();
+        else
+            _items = CreateRows();
+    }
+
+    public sealed record TestRow(object? Key, string Name);
+
+    private static TestRow[] CreateRows() =>
+    [
+        new(7, "Typed int"),
+        new("7", "Typed text"),
+        new(Guid.Parse("83dff0ec-8ab3-4c30-80b6-d9474207aac5"), "Typed Guid"),
+        new("duplicate", "Duplicate A"),
+        new("duplicate", "Duplicate B"),
+        new(null, "Null A"),
+        new(null, "Null B")
+    ];
+
+    private sealed class RowProvider : IDataGridVirtualDataProvider<TestRow>
+    {
+        public Task<DataGridVirtualResponse<TestRow>> GetVirtualDataAsync(DataGridVirtualRequest request)
+        {
+            IEnumerable<TestRow> rows = CreateRows();
+            if (request.GlobalSearch is { } search)
+                rows = rows.Where(row => row.Name.Contains(search, StringComparison.OrdinalIgnoreCase));
+            if (request.Sorts.FirstOrDefault() is { } sort)
+                rows = sort.Descending ? rows.OrderByDescending(row => row.Name) : rows.OrderBy(row => row.Name);
+
+            var matches = rows.ToList();
+            return Task.FromResult(new DataGridVirtualResponse<TestRow>
+            {
+                TotalCount = matches.Count,
+                Items = matches.Skip(request.StartIndex).Take(request.Count).ToList()
+            });
+        }
+    }
+}

@@ -1,0 +1,25 @@
+<div class="ui-progress ui-progress--@Variant.Css() @Class">
+    @if ((!string.IsNullOrEmpty(Label) && !HideLabel) || ShowValue)
+    {
+        <div class="ui-progress__head">
+            <span>@(HideLabel ? null : Label)</span>
+            @if (ShowValue) { <span>@Percent.ToString("0")%</span> }
+        </div>
+    }
+    <div class="ui-progress__track" role="progressbar" aria-valuemin="0" aria-valuemax="@Max" aria-valuenow="@Value" aria-label="@(Label ?? "Progress")">
+        <div class="ui-progress__bar" style="width:@(Percent.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture))%"></div>
+    </div>
+</div>
+
+@code {
+    [Parameter] public double Value { get; set; }
+    [Parameter] public double Max { get; set; } = 100;
+    [Parameter] public UiVariant Variant { get; set; } = UiVariant.Primary;
+    [Parameter] public string? Label { get; set; }
+    [Parameter] public bool ShowValue { get; set; }
+    /// <summary>Keeps <see cref="Label"/> as the accessible name only, without displaying it.</summary>
+    [Parameter] public bool HideLabel { get; set; }
+    [Parameter] public string? Class { get; set; }
+
+    private double Percent => Max <= 0 ? 0 : Math.Clamp(Value / Max * 100, 0, 100);
+}

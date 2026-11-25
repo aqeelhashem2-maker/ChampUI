@@ -1,0 +1,73 @@
+@page "/"
+@rendermode InteractiveServer
+@inject UiThemeState Theme
+
+<UiAppShell Direction="@(_rtl ? UiTextDirection.Rtl : UiTextDirection.Ltr)" Language="@(_rtl ? "ar" : "en")">
+    <h1>@(_rtl ? "اختبار مكتبة الواجهة" : "Independent ChampUI consumer")</h1>
+    <UiButton Disabled="@(!_ready)" OnClick="Theme.Toggle">Toggle theme</UiButton>
+    <UiButton Disabled="@(!_ready)" OnClick="() => _rtl = !_rtl">Toggle Arabic</UiButton>
+
+    <section id="local-grid">
+        <h2>Local records</h2>
+        <UiDataGrid TItem="Row" Items="_local" PageSize="5" RowKeySelector="row => row.Id"
+                    Selectable="true" AllowCsvExport="true" AllowXlsxExport="true">
+            <Columns>
+                <UiColumn TItem="Row" Title="ID" Field="Id" Value="row => row.Id" Sortable="true" />
+                <UiColumn TItem="Row" Title="Name" Field="Name" Value="row => row.Name" Searchable="true" />
+            </Columns>
+        </UiDataGrid>
+    </section>
+    <section id="virtual-grid">
+        <h2>Virtual records</h2>
+        <UiDataGrid TItem="Row" VirtualProvider="_provider" VirtualViewportHeight="300px"
+                    RowKeySelector="row => row.Id" Selectable="true" AllowCsvExport="true" AllowXlsxExport="true">
+            <Columns>
+                <UiColumn TItem="Row" Title="ID" Field="Id" Value="row => row.Id" Sortable="true" />
+                <UiColumn TItem="Row" Title="Name" Field="Name" Value="row => row.Name" Searchable="true" />
+            </Columns>
+        </UiDataGrid>
+    </section>
+</UiAppShell>
+
+@code {
+    private bool _ready;
+    private bool _rtl;
+    private readonly RangeProvider _provider = new();
+    private readonly Row[] _local = Records().Take(12).ToArray();
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (!firstRender) return;
+        _ready = true;
+        StateHasChanged();
+    }
+
+    private static IEnumerable<Row> Records() =>
+        Enumerable.Range(1, 100).Select(id => new Row(id, $"Record {id:D3}"));
+
+    public sealed record Row(int Id, string Name);
+
+    private sealed class RangeProvider : IDataGridVirtualDataProvider<Row>
+    {
+        public Task<DataGridVirtualResponse<Row>> GetVirtualDataAsync(DataGridVirtualRequest request)
+        {
+            var rows = Match(request).ToArray();
+            return Task.FromResult(new DataGridVirtualResponse<Row>
+            {
+                TotalCount = rows.Length, Items = rows.Skip(request.StartIndex).Take(request.Count).ToArray()
+            });
+        }
+
+        public Task<DataGridExportResult<Row>?> GetAllForExportAsync(DataGridVirtualRequest request) =>
+            Task.FromResult<DataGridExportResult<Row>?>(new() { Items = Match(request).ToArray() });
+
+        private static IEnumerable<Row> Match(DataGridVirtualRequest request)
+        {
+            request.CancellationToken.ThrowIfCancellationRequested();
+            var rows = Records().Where(row => request.GlobalSearch is not { } term ||
+                row.Name.Contains(term, StringComparison.OrdinalIgnoreCase));
+            return request.Sorts.FirstOrDefault()?.Descending == true
+                ? rows.OrderByDescending(row => row.Id) : rows.OrderBy(row => row.Id);
+        }
+    }
+}

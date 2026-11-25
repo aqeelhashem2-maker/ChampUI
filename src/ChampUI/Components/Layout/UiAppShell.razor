@@ -1,0 +1,44 @@
+@implements IDisposable
+@inject UiThemeState Theme
+
+<CascadingValue Value="this" IsFixed="true">
+    <div class="ui-shell @Class" data-theme="@(Theme.Mode == UiThemeMode.Dark ? "dark" : "light")"
+         dir="@(Direction == UiTextDirection.Rtl ? "rtl" : "ltr")" lang="@Language"
+         data-nav-open="@(NavOpen ? "true" : "false")" @onkeydown="OnKeyDown">
+        <UiThemeStyle />
+        @Sidebar
+        <div class="ui-shell__scrim" @onclick="CloseNav" aria-hidden="true"></div>
+        <div class="ui-shell__main">
+            @Topbar
+            <main class="ui-shell__content" id="main-content">
+                @ChildContent
+            </main>
+        </div>
+        <UiToastHost />
+    </div>
+</CascadingValue>
+
+@code {
+    /// <summary>Usually a <c>UiSidebar</c>.</summary>
+    [Parameter] public RenderFragment? Sidebar { get; set; }
+    /// <summary>Usually a <c>UiTopbar</c>.</summary>
+    [Parameter] public RenderFragment? Topbar { get; set; }
+    /// <summary>The routed page content.</summary>
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+    [Parameter] public UiTextDirection Direction { get; set; } = UiTextDirection.Ltr;
+    [Parameter] public string Language { get; set; } = "en";
+    [Parameter] public string? Class { get; set; }
+
+    /// <summary>Whether the off-canvas navigation is open (mobile only).</summary>
+    public bool NavOpen { get; private set; }
+
+    public void ToggleNav() { NavOpen = !NavOpen; StateHasChanged(); }
+    public void CloseNav() { if (!NavOpen) return; NavOpen = false; StateHasChanged(); }
+
+    protected override void OnInitialized() => Theme.Changed += OnThemeChanged;
+
+    private void OnThemeChanged() => InvokeAsync(StateHasChanged);
+    private void OnKeyDown(KeyboardEventArgs e) { if (e.Key == "Escape") CloseNav(); }
+
+    public void Dispose() => Theme.Changed -= OnThemeChanged;
+}

@@ -1,0 +1,12 @@
+<div class="ui-loading @(Overlay ? "ui-loading--overlay" : null) @Class" role="status" aria-live="polite">
+    <span class="ui-spinner @(Size == UiSize.Large ? "ui-spinner--lg" : null)" aria-hidden="true"></span>
+    @if (!string.IsNullOrEmpty(Label)) { <span>@Label</span> }
+</div>
+
+@code {
+    [Parameter] public string? Label { get; set; } = "Loading…";
+    [Parameter] public UiSize Size { get; set; } = UiSize.Medium;
+    /// <summary>Covers the nearest positioned parent instead of flowing inline.</summary>
+    [Parameter] public bool Overlay { get; set; }
+    [Parameter] public string? Class { get; set; }
+}

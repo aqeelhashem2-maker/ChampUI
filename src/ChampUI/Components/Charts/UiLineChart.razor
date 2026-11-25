@@ -1,0 +1,134 @@
+@using System.Text
+@using static ChampUI.Components.Charts.ChartHelpers
+<div class="ui-chart @Class">
+    <div class="ui-chart__scroll">
+        <svg class="ui-chart__svg" viewBox="0 0 @W @Height" role="img" aria-label="@AriaLabel" preserveAspectRatio="xMidYMid meet">
+            <defs>
+                @for (var s = 0; s < Series.Count; s++)
+                {
+                    var color = Color(Series[s].Color, s);
+                    <linearGradient id="@(_uid)-g@(s)" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" style="stop-color:@color;stop-opacity:0.28" />
+                        <stop offset="100%" style="stop-color:@color;stop-opacity:0" />
+                    </linearGradient>
+                }
+            </defs>
+
+            @for (var t = 0; t <= 4; t++)
+            {
+                var value = t * _step;
+                var y = Y(value);
+                <line class="ui-chart__grid" x1="@F(MarginLeft)" x2="@F(W - MarginRight)" y1="@F(y)" y2="@F(y)" />
+                <ChartText X="@F(MarginLeft - 10)" Y="@F(y + 4)" Anchor="end">@AxisFormatter(value)</ChartText>
+            }
+
+            @for (var i = 0; i < Labels.Count; i++)
+            {
+                if (!ShowLabel(i)) { continue; }
+                var label = Labels[i]; // captured by the deferred child fragment, so never use the loop variable directly
+                <ChartText X="@F(X(i))" Y="@F(Height - 8)" Anchor="middle">@label</ChartText>
+            }
+
+            @for (var s = 0; s < Series.Count; s++)
+            {
+                var color = Color(Series[s].Color, s);
+                var line = LinePath(Series[s]);
+                if (line.Length == 0) { continue; }
+                if (ShowArea)
+                {
+                    <path d="@AreaPath(Series[s], line)" fill="url(#@(_uid)-g@(s))" />
+                }
+                <path class="ui-chart__line" d="@line" style="stroke:@color" />
+            }
+
+            @for (var i = 0; i < Labels.Count; i++)
+            {
+                var index = i;
+                <g class="ui-chart__col">
+                    <title>@Tooltip(index)</title>
+                    <line class="ui-chart__guide" x1="@F(X(index))" x2="@F(X(index))" y1="@F(MarginTop)" y2="@F(Height - MarginBottom)" />
+                    @for (var s = 0; s < Series.Count; s++)
+                    {
+                        if (index >= Series[s].Values.Count) { continue; }
+                        <circle class="ui-chart__dot" cx="@F(X(index))" cy="@F(Y(Series[s].Values[index]))" r="5" style="fill:@Color(Series[s].Color, s)" />
+                    }
+                    <rect class="ui-chart__hit" x="@F(X(index) - ColWidth / 2)" y="@F(MarginTop)" width="@F(ColWidth)" height="@F(Height - MarginTop - MarginBottom)" />
+                </g>
+            }
+        </svg>
+    </div>
+    @if (ShowLegend && Series.Count > 0)
+    {
+        <div class="ui-chart__legend">
+            @for (var s = 0; s < Series.Count; s++)
+            {
+                <span class="ui-chart__legend-item"><span class="ui-chart__swatch" style="background:@Color(Series[s].Color, s)"></span>@Series[s].Name</span>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    private const double W = 720, MarginLeft = 48, MarginRight = 14, MarginTop = 14, MarginBottom = 30, Pad = 14;
+    private readonly string _uid = "lc" + Guid.NewGuid().ToString("N")[..6];
+    private double _step = 1, _max = 4;
+
+    /// <summary>One or more series; each series' values align with <see cref="Labels"/>.</summary>
+    [Parameter, EditorRequired] public IReadOnlyList<ChartSeries> Series { get; set; } = Array.Empty<ChartSeries>();
+    [Parameter, EditorRequired] public IReadOnlyList<string> Labels { get; set; } = Array.Empty<string>();
+    [Parameter] public double Height { get; set; } = 300;
+    [Parameter] public bool ShowArea { get; set; } = true;
+    [Parameter] public bool Smooth { get; set; } = true;
+    [Parameter] public bool ShowLegend { get; set; } = true;
+    [Parameter] public string AriaLabel { get; set; } = "Line chart";
+    /// <summary>Formats values in tooltips.</summary>
+    [Parameter] public Func<double, string> ValueFormatter { get; set; } = DefaultValue;
+    /// <summary>Formats the y axis tick labels.</summary>
+    [Parameter] public Func<double, string> AxisFormatter { get; set; } = CompactAxis;
+    [Parameter] public string? Class { get; set; }
+
+    private double PlotWidth => W - MarginLeft - MarginRight - 2 * Pad;
+    private double ColWidth => Labels.Count > 1 ? PlotWidth / (Labels.Count - 1) : PlotWidth;
+
+    protected override void OnParametersSet()
+    {
+        var max = Series.Count == 0 ? 0 : Series.Max(s => s.Values.Count == 0 ? 0 : s.Values.Max());
+        (_step, _max) = NiceScale(max);
+    }
+
+    private double X(int i) => Labels.Count <= 1 ? MarginLeft + Pad + PlotWidth / 2 : MarginLeft + Pad + i * PlotWidth / (Labels.Count - 1);
+    private double Y(double v) => MarginTop + (Height - MarginTop - MarginBottom) * (1 - v / _max);
+    private bool ShowLabel(int i) => Labels.Count <= 8 || i % (int)Math.Ceiling(Labels.Count / 8.0) == 0 || i == Labels.Count - 1 && Labels.Count % 2 == 1;
+
+    private string LinePath(ChartSeries s)
+    {
+        var n = Math.Min(s.Values.Count, Labels.Count);
+        if (n == 0) return "";
+        var sb = new StringBuilder();
+        sb.Append("M ").Append(F(X(0))).Append(' ').Append(F(Y(s.Values[0])));
+        for (var i = 1; i < n; i++)
+        {
+            double x0 = X(i - 1), y0 = Y(s.Values[i - 1]), x1 = X(i), y1 = Y(s.Values[i]);
+            if (Smooth)
+            {
+                var mid = (x0 + x1) / 2;
+                sb.Append(" C ").Append(F(mid)).Append(' ').Append(F(y0)).Append(", ").Append(F(mid)).Append(' ').Append(F(y1)).Append(", ").Append(F(x1)).Append(' ').Append(F(y1));
+            }
+            else sb.Append(" L ").Append(F(x1)).Append(' ').Append(F(y1));
+        }
+        return sb.ToString();
+    }
+
+    private string AreaPath(ChartSeries s, string line)
+    {
+        var n = Math.Min(s.Values.Count, Labels.Count);
+        var baseline = Height - MarginBottom;
+        return $"{line} L {F(X(n - 1))} {F(baseline)} L {F(X(0))} {F(baseline)} Z";
+    }
+
+    private string Tooltip(int i)
+    {
+        var parts = Series.Where(s => i < s.Values.Count).Select(s => $"{s.Name}: {ValueFormatter(s.Values[i])}");
+        return $"{Labels[i]}\n{string.Join("\n", parts)}";
+    }
+}

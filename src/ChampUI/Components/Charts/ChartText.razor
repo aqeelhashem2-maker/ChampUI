@@ -1,0 +1,9 @@
+<text class="ui-chart__axis-label" x="@X" y="@Y" text-anchor="@Anchor">@ChildContent</text>
+
+@code {
+    // Razor reserves the <text> tag inside code blocks, so SVG labels are wrapped in this tiny component.
+    [Parameter] public string X { get; set; } = "0";
+    [Parameter] public string Y { get; set; } = "0";
+    [Parameter] public string Anchor { get; set; } = "middle";
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+}

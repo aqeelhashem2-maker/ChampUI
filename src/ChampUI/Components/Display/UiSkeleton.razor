@@ -1,0 +1,10 @@
+<span class="ui-skeleton @(Circle ? "ui-skeleton--circle" : null) @Class" aria-hidden="true"
+      style="width:@(Circle ? Height : Width);height:@Height;@Style"></span>
+
+@code {
+    [Parameter] public string Width { get; set; } = "100%";
+    [Parameter] public string Height { get; set; } = "14px";
+    [Parameter] public bool Circle { get; set; }
+    [Parameter] public string? Class { get; set; }
+    [Parameter] public string? Style { get; set; }
+}

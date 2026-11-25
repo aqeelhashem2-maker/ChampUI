@@ -1,0 +1,40 @@
+@if (Visible)
+{
+    <div class="ui-dialog-backdrop" @onclick="CloseAsync">
+        <div class="ui-dialog ui-dialog--@Size.Css() @Class" role="dialog" aria-modal="true" aria-labelledby="@_titleId" tabindex="-1"
+             @onclick:stopPropagation="true" @onkeydown="OnKeyDown">
+            <div class="ui-dialog__header">
+                <h2 class="ui-dialog__title" id="@_titleId">@Title</h2>
+                <UiIconButton Icon="x" Label="@CloseLabel" Small="true" OnClick="CloseClicked" />
+            </div>
+            <div class="ui-dialog__body">@ChildContent</div>
+            @if (Footer != null) { <div class="ui-dialog__footer">@Footer</div> }
+        </div>
+    </div>
+}
+
+@code {
+    private readonly string _titleId = "dlg-" + Guid.NewGuid().ToString("N")[..8];
+
+    [Parameter] public bool Visible { get; set; }
+    [Parameter] public EventCallback<bool> VisibleChanged { get; set; }
+    [Parameter, EditorRequired] public string Title { get; set; } = "";
+    [Parameter] public UiSize Size { get; set; } = UiSize.Medium;
+    [Parameter] public string CloseLabel { get; set; } = "Close";
+    [Parameter] public string? Class { get; set; }
+    /// <summary>Dialog body.</summary>
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+    /// <summary>Action buttons, aligned to the trailing edge.</summary>
+    [Parameter] public RenderFragment? Footer { get; set; }
+    [Parameter] public EventCallback OnClosed { get; set; }
+
+    public async Task CloseAsync()
+    {
+        Visible = false;
+        await VisibleChanged.InvokeAsync(false);
+        await OnClosed.InvokeAsync();
+    }
+
+    private Task CloseClicked(MouseEventArgs _) => CloseAsync();
+    private async Task OnKeyDown(KeyboardEventArgs e) { if (e.Key == "Escape") await CloseAsync(); }
+}

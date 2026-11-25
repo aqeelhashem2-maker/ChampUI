@@ -1,0 +1,11 @@
+<span class="ui-tooltip @Class">
+    @ChildContent
+    <span class="ui-tooltip__bubble" role="tooltip" id="@_id">@Text</span>
+</span>
+
+@code {
+    private readonly string _id = "tt-" + Guid.NewGuid().ToString("N")[..8];
+    [Parameter, EditorRequired] public string Text { get; set; } = "";
+    [Parameter] public string? Class { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+}

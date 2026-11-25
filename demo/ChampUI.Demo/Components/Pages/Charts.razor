@@ -1,0 +1,21 @@
+@page "/charts"
+
+<PageTitle>Charts · ChampUI Showcase</PageTitle>
+<UiPageHeader Title="Charts" Subtitle="Fictional project activity across four months." />
+<div class="showcase-grid">
+    <UiCard Title="Monthly activity"><UiLineChart Labels="_months" Series="_series" AriaLabel="Monthly activity" Height="220" /></UiCard>
+    <UiCard Title="Completed work"><UiBarChart Labels="_months" Series="_series" AriaLabel="Completed work" Height="220" /></UiCard>
+    <UiCard Title="Workload over time"><UiAreaChart Labels="_months" Series="_series" AriaLabel="Workload over time" Height="220" /></UiCard>
+    <UiCard Title="Project breakdown"><UiDonutChart Segments="_segments" AriaLabel="Project breakdown" /></UiCard>
+</div>
+
+@code {
+    private readonly string[] _months = ["January", "February", "March", "April"];
+    private readonly ChartSeries[] _series = [new() { Name = "Tasks", Values = [18, 27, 22, 35] }];
+    private readonly ChartSegment[] _segments =
+    [
+        new() { Label = "Research", Value = 18 },
+        new() { Label = "Build", Value = 35 },
+        new() { Label = "Review", Value = 22 }
+    ];
+}

@@ -1,0 +1,40 @@
+# .NET and IDE output
+bin/
+obj/
+.vs/
+*.user
+*.suo
+
+# Local runs, dependencies and release artifacts
+TestResults/
+test-results/
+playwright-report/
+playwright/.cache/
+node_modules/
+.nuget/
+.local/
+.dotnet_temp/
+Library/
+audit-evidence/
+release/
+*.trx
+*.log
+*.tmp
+/ChampUI-v*-release.tar.gz
+
+# OS metadata
+.DS_Store
+__MACOSX/
+Thumbs.db
+
+# Local secrets and credentials
+.env
+.env.*
+!.env.example
+appsettings.Local.json
+appsettings.*.Local.json
+.aws/
+*.pfx
+*.p12
+*.pem
+*.key

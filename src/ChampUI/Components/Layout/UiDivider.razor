@@ -1,0 +1,18 @@
+@if (Vertical)
+{
+    <span class="ui-divider--vertical @Class" role="separator" aria-orientation="vertical"></span>
+}
+else if (!string.IsNullOrEmpty(Label))
+{
+    <div class="ui-divider--label @Class" role="separator">@Label</div>
+}
+else
+{
+    <hr class="ui-divider @Class" />
+}
+
+@code {
+    [Parameter] public bool Vertical { get; set; }
+    [Parameter] public string? Label { get; set; }
+    [Parameter] public string? Class { get; set; }
+}

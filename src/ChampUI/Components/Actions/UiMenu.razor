@@ -1,0 +1,45 @@
+<UiDropdown Align="@Align" TriggerClass="@TriggerClass" Label="@Label" @ref="_dropdown">
+    <Trigger>
+        @if (Trigger != null) { @Trigger }
+        else { <UiIcon Name="@Icon" Size="19" /> }
+    </Trigger>
+    <ChildContent>
+        @if (!string.IsNullOrEmpty(Header)) { <div class="ui-menu__header">@Header</div> }
+        @foreach (var item in Items)
+        {
+            if (item.SeparatorBefore) { <hr class="ui-menu__sep" /> }
+            if (!string.IsNullOrEmpty(item.Href) && !item.Disabled)
+            {
+                <a class="ui-menu__item @(item.Danger ? "ui-menu__item--danger" : null)" role="menuitem" href="@item.Href">
+                    @if (!string.IsNullOrEmpty(item.Icon)) { <UiIcon Name="@item.Icon" Size="16" /> }
+                    @item.Text
+                </a>
+            }
+            else
+            {
+                <button type="button" role="menuitem" class="ui-menu__item @(item.Danger ? "ui-menu__item--danger" : null)" disabled="@item.Disabled"
+                        @onclick="() => SelectAsync(item)">
+                    @if (!string.IsNullOrEmpty(item.Icon)) { <UiIcon Name="@item.Icon" Size="16" /> }
+                    @item.Text
+                </button>
+            }
+        }
+    </ChildContent>
+</UiDropdown>
+
+@code {
+    private UiDropdown? _dropdown;
+
+    [Parameter, EditorRequired] public IEnumerable<UiMenuItem> Items { get; set; } = Array.Empty<UiMenuItem>();
+    [Parameter] public RenderFragment? Trigger { get; set; }
+    [Parameter] public string Icon { get; set; } = "dots";
+    [Parameter] public string Label { get; set; } = "More actions";
+    [Parameter] public string? Header { get; set; }
+    [Parameter] public string TriggerClass { get; set; } = "ui-iconbtn";
+    [Parameter] public UiAlign Align { get; set; } = UiAlign.End;
+
+    private async Task SelectAsync(UiMenuItem item)
+    {
+        if (item.OnSelect != null) await item.OnSelect();
+    }
+}

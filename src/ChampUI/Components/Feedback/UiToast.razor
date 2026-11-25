@@ -1,0 +1,23 @@
+<div class="ui-toast ui-toast--@Css" role="status">
+    <span class="ui-toast__icon"><UiIcon Name="@IconName" Size="20" /></span>
+    <div class="ui-toast__body">
+        @if (!string.IsNullOrEmpty(Message.Title)) { <div class="ui-toast__title">@Message.Title</div> }
+        <div class="ui-toast__text">@Message.Text</div>
+    </div>
+    <UiIconButton Icon="x" Label="@DismissLabel" Small="true" OnClick="OnDismiss" />
+</div>
+
+@code {
+    [Parameter, EditorRequired] public ToastMessage Message { get; set; } = default!;
+    [Parameter] public string DismissLabel { get; set; } = "Dismiss";
+    [Parameter] public EventCallback<MouseEventArgs> OnDismiss { get; set; }
+
+    private string Css => Message.Kind.ToString().ToLowerInvariant();
+    private string IconName => Message.Kind switch
+    {
+        ToastKind.Success => "check-circle",
+        ToastKind.Warning => "alert",
+        ToastKind.Danger => "x-circle",
+        _ => "info"
+    };
+}

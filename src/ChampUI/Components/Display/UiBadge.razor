@@ -1,0 +1,13 @@
+<span class="ui-badge ui-badge--@Variant.Css() @(Small ? "ui-badge--sm" : null) @Class" @attributes="Attributes">
+    @if (Dot) { <span class="ui-badge__dot" aria-hidden="true"></span> }
+    @ChildContent
+</span>
+
+@code {
+    [Parameter] public UiVariant Variant { get; set; } = UiVariant.Neutral;
+    [Parameter] public bool Dot { get; set; }
+    [Parameter] public bool Small { get; set; }
+    [Parameter] public string? Class { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+    [Parameter(CaptureUnmatchedValues = true)] public Dictionary<string, object>? Attributes { get; set; }
+}

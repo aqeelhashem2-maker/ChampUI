@@ -1,0 +1,32 @@
+@using System.Globalization
+<div class="ui-field @Class">
+    @if (!string.IsNullOrEmpty(Label)) { <label class="ui-field__label" for="@_id">@Label</label> }
+    <div class="ui-input @(Disabled ? "ui-input--disabled" : null) @(Small ? "ui-input--sm" : null)">
+        <UiIcon Name="calendar" Size="16" />
+        <input id="@_id" type="date" value="@Format(Value)" min="@Format(Min)" max="@Format(Max)" disabled="@Disabled" @onchange="OnChange" />
+    </div>
+    @if (!string.IsNullOrEmpty(HelpText)) { <span class="ui-field__help">@HelpText</span> }
+</div>
+
+@code {
+    private readonly string _id = "dp-" + Guid.NewGuid().ToString("N")[..8];
+
+    [Parameter] public DateOnly? Value { get; set; }
+    [Parameter] public EventCallback<DateOnly?> ValueChanged { get; set; }
+    [Parameter] public DateOnly? Min { get; set; }
+    [Parameter] public DateOnly? Max { get; set; }
+    [Parameter] public string? Label { get; set; }
+    [Parameter] public string? HelpText { get; set; }
+    [Parameter] public bool Disabled { get; set; }
+    [Parameter] public bool Small { get; set; }
+    [Parameter] public string? Class { get; set; }
+
+    private static string? Format(DateOnly? d) => d?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+
+    private async Task OnChange(ChangeEventArgs e)
+    {
+        DateOnly? parsed = DateOnly.TryParseExact(e.Value?.ToString(), "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var d) ? d : null;
+        Value = parsed;
+        await ValueChanged.InvokeAsync(parsed);
+    }
+}

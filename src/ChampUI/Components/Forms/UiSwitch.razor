@@ -1,0 +1,18 @@
+<button type="button" role="switch" class="ui-switch @Class" aria-checked="@(Checked ? "true" : "false")" disabled="@Disabled" @onclick="ToggleAsync">
+    <span class="ui-switch__track"><span class="ui-switch__thumb"></span></span>
+    @if (!string.IsNullOrEmpty(Label)) { <span>@Label</span> }
+</button>
+
+@code {
+    [Parameter] public bool Checked { get; set; }
+    [Parameter] public EventCallback<bool> CheckedChanged { get; set; }
+    [Parameter] public string? Label { get; set; }
+    [Parameter] public bool Disabled { get; set; }
+    [Parameter] public string? Class { get; set; }
+
+    private async Task ToggleAsync()
+    {
+        Checked = !Checked;
+        await CheckedChanged.InvokeAsync(Checked);
+    }
+}

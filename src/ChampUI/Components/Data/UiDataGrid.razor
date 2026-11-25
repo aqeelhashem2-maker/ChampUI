@@ -1,0 +1,1988 @@
+@typeparam TItem
+@implements IDisposable
+
+@using ChampUI.Core.Interfaces
+@using ChampUI.Core.Models
+@using Microsoft.JSInterop
+@using Microsoft.Extensions.Logging
+@using Microsoft.AspNetCore.Components.Web.Virtualization
+
+@{
+    // B-03: Determine if virtualization is active
+    var pageRows = VirtualProvider == null ? GetRenderRows(_pageItems) : null;
+    var isVirtualized = VirtualProvider != null || VirtualizationMode == UiDataGridVirtualization.Enabled;
+    var virtualizedClass = isVirtualized ? "ui-grid--virtualized" : null;
+    var scrollClass = isVirtualized ? "ui-grid__scroll--virtualized" : "ui-grid__scroll";
+    
+    // B-03: Build inline styles for CSS variables
+    var inlineStyle = "";
+    if (isVirtualized)
+    {
+        inlineStyle = $"--ui-virtual-row-height: {VirtualRowHeight}px;";
+        if (!string.IsNullOrWhiteSpace(VirtualViewportHeight))
+        {
+            inlineStyle += $" --ui-virtual-viewport-height: {VirtualViewportHeight};";
+        }
+    }
+}
+
+<div class="ui-grid @virtualizedClass @(OnRowClick.HasDelegate ? "ui-grid--clickable" : null) @(EditMode != UiDataGridEditMode.None ? "ui-grid--editable" : null) @Class"
+     role="@(ServerProvider != null ? "region" : null)" aria-busy="@(Loading ? "true" : null)"
+     style="@inlineStyle"  >
+
+    <CascadingValue Value="this" IsFixed="true">@Columns</CascadingValue>
+
+    @* ───────────────────────────── Toolbar ───────────────────────────── *@
+    @if (Searchable || Toolbar != null || Selectable || _columns.Any(c => c.Filterable) || CanExport)
+    {
+        <div class="ui-grid__toolbar">
+            @if (Searchable)
+            {
+                <div class="ui-grid__search">
+                    <UiTextField Icon="search" Type="search" Small="true" Placeholder="@SearchPlaceholder"
+                                 Value="@_search" ValueChanged="OnSearchChangedAsync"
+                                 aria-label="@SearchPlaceholder" />
+                </div>
+            }
+            @Toolbar
+            <span class="ui-grid__toolbar-spacer"></span>
+
+            @* Column visibility button *@
+            @if (ShowColumnToggle && _columns.Count > 0)
+            {
+                <div class="ui-grid__col-toggle ui-dropdown @(_colToggleOpen ? "is-open" : null)">
+                    <button type="button" class="ui-btn ui-btn--ghost ui-btn--sm ui-grid__col-toggle-btn"
+                            @onclick="() => _colToggleOpen = !_colToggleOpen"
+                            aria-expanded="@(_colToggleOpen ? "true" : "false")"
+                            aria-haspopup="listbox">
+                        <UiIcon Name="columns" Size="16" />
+                        <span class="ui-hide-sm">@ColumnsLabel</span>
+                    </button>
+                    @if (_colToggleOpen)
+                    {
+                        <div class="ui-dropdown__panel ui-dropdown__panel--end" role="listbox" aria-label="@ColumnsLabel">
+                            @foreach (var col in _columns)
+                            {
+                                var c = col;
+                                <label class="ui-menu__item ui-grid__col-toggle-item">
+                                    <input type="checkbox" checked="@c.Visible" @onchange="() => ToggleColumnVisibility(c)" />
+                                    @c.Title
+                                </label>
+                            }
+                        </div>
+                    }
+                </div>
+            }
+
+            @* Export button — shows scope explicitly to avoid ambiguity *@
+            @if (CanExport)
+            {
+                <div class="ui-dropdown @(_exportOpen ? "is-open" : null)" data-testid="export-toolbar">
+                    <button type="button" class="ui-btn ui-btn--ghost ui-btn--sm @(_exportBusy ? "is-loading" : null)"
+                            @onclick="() => _exportOpen = !_exportOpen"
+                            aria-expanded="@(_exportOpen ? "true" : "false")"
+                            aria-haspopup="menu"
+                            disabled="@_exportBusy">
+                        <UiIcon Name="download" Size="16" />
+                        <span class="ui-hide-sm">@ExportLabel</span>
+                    </button>
+                    @if (_exportOpen)
+                    {
+                        <div class="ui-dropdown__panel ui-dropdown__panel--end" role="menu">
+                            @if (AllowCsvExport)
+                            {
+                                <button type="button" class="ui-menu__item @(VirtualProvider != null ? "is-disabled" : null)" role="menuitem"
+                                        disabled="@(VirtualProvider != null)"
+                                        title="@(VirtualProvider != null ? VirtualCurrentPageUnavailableLabel : null)"
+                                        @onclick="() => ExportCsvAsync(DataGridExportScope.CurrentPage)">
+                                    <UiIcon Name="file-text" Size="16" /> @ExportCsvCurrentPageLabel
+                                </button>
+                                <button type="button" class="ui-menu__item" role="menuitem"
+                                        @onclick="() => ExportCsvAsync(DataGridExportScope.AllFilteredRows)">
+                                    <UiIcon Name="file-text" Size="16" /> @ExportCsvAllLabel
+                                </button>
+                            }
+                            @if (AllowXlsxExport)
+                            {
+                                <button type="button" class="ui-menu__item @(VirtualProvider != null ? "is-disabled" : null)" role="menuitem"
+                                        disabled="@(VirtualProvider != null)"
+                                        title="@(VirtualProvider != null ? VirtualCurrentPageUnavailableLabel : null)"
+                                        @onclick="() => ExportXlsxAsync(DataGridExportScope.CurrentPage)">
+                                    <UiIcon Name="file-spreadsheet" Size="16" /> @ExportXlsxCurrentPageLabel
+                                </button>
+                                <button type="button" class="ui-menu__item" role="menuitem"
+                                        @onclick="() => ExportXlsxAsync(DataGridExportScope.AllFilteredRows)">
+                                    <UiIcon Name="file-spreadsheet" Size="16" /> @ExportXlsxAllLabel
+                                </button>
+                            }
+                        </div>
+                    }
+                </div>
+            }
+
+            @if (Selectable && _selected.Count > 0)
+            {
+                <span class="ui-grid__selected">@string.Format(SelectedFormat, _selected.Count)</span>
+            }
+        </div>
+    }
+
+    @* ───────────────────────── Active column filters ───────────────────────── *@
+    @if (_columnFilters.Count > 0)
+    {
+        <div class="ui-grid__filter-chips">
+            @foreach (var (col, val) in _columnFilters)
+            {
+                var c = col;
+                <span class="ui-grid__filter-chip">
+                    <span class="ui-grid__filter-chip-label">@c.Title: @val</span>
+                    <button type="button" class="ui-grid__filter-chip-clear" @onclick="() => ClearColumnFilter(c)"
+                            aria-label="@ClearFilterLabel @c.Title">
+                        <UiIcon Name="x" Size="12" />
+                    </button>
+                </span>
+            }
+            @if (_columnFilters.Count > 1)
+            {
+                <button type="button" class="ui-btn ui-btn--ghost ui-btn--sm" @onclick="ClearAllFilters">@ClearAllFiltersLabel</button>
+            }
+        </div>
+    }
+
+    @* ───────────────────────── Error state ───────────────────────── *@
+    @if (_error != null)
+    {
+        <div class="ui-grid__error" role="alert">
+            <UiIcon Name="alert-circle" Size="20" />
+            <span>@_error</span>
+            <button type="button" class="ui-btn ui-btn--ghost ui-btn--sm" @onclick="RetryAsync">@RetryLabel</button>
+        </div>
+    }
+
+    @if (_exportError != null)
+    {
+        <div class="ui-grid__error" role="alert">
+            <UiIcon Name="alert-circle" Size="20" />
+            <span>@_exportError</span>
+        </div>
+    }
+
+    @* ───────────────────────── Table ───────────────────────── *@
+    <div class="@scrollClass" @ref="_scrollRef" data-testid="virtualize-wrapper">
+        <table class="ui-grid__table">
+            <thead>
+                <tr>
+                    @if (Selectable)
+                    {
+                        <th class="ui-grid__check" scope="col">
+                            <UiCheckbox Checked="AllOnPageSelected" CheckedChanged="ToggleAllAsync" aria-label="@EffectiveSelectAllLabel" />
+                        </th>
+                    }
+                    @foreach (var col in VisibleColumns)
+                    {
+                        var c = col;
+                        <th scope="col" class="@HeaderClass(c)"
+                            style="@ColStyle(c)"
+                            aria-sort="@(c.Sortable ? SortAria(c) : null)">
+                            <div class="ui-grid__th-inner">
+                                @if (c.HeaderTemplate != null)
+                                {
+                                    @c.HeaderTemplate
+                                }
+                                else if (c.Sortable)
+                                {
+                                    <button type="button" class="ui-grid__sort" data-dir="@SortDir(c)"
+                                            @onclick="() => SortAsync(c)">
+                                        @c.Title
+                                        <span class="ui-grid__sort-icons">
+                                            @if (_activeSorts.Any(s => s.col == c))
+                                            {
+                                                var sortItem = _activeSorts.First(s => s.col == c);
+                                                <UiIcon Name="@(sortItem.desc ? "arrow-down" : "arrow-up")" Size="13" />
+                                                @if (_activeSorts.Count > 1)
+                                                {
+                                                    <span class="ui-grid__sort-rank">@(_activeSorts.IndexOf(sortItem) + 1)</span>
+                                                }
+                                            }
+                                            else
+                                            {
+                                                <UiIcon Name="arrow-up-down" Size="13" />
+                                            }
+                                        </span>
+                                    </button>
+                                }
+                                else
+                                {
+                                    @c.Title
+                                }
+
+                                @* Column filter *@
+                                @if (c.Filterable)
+                                {
+                                    <div class="ui-grid__col-filter @(_openFilterCol == c ? "is-open" : null)">
+                                        <button type="button"
+                                                class="ui-grid__col-filter-btn @(_columnFilters.ContainsKey(c) ? "is-active" : null)"
+                                                @onclick:stopPropagation="true"
+                                                @onclick="() => ToggleFilterPanel(c)"
+                                                aria-label="@FilterLabel @c.Title"
+                                                aria-expanded="@(_openFilterCol == c ? "true" : "false")">
+                                            <UiIcon Name="@(_columnFilters.ContainsKey(c) ? "filter-filled" : "filter")" Size="13" />
+                                        </button>
+                                        @if (_openFilterCol == c)
+                                        {
+                                            var hasFilter = _columnFilters.TryGetValue(c, out var curFilter);
+                                            var curOp = hasFilter ? curFilter!.Operator : GetDefaultOperator(c.FilterType);
+                                            var curVal = hasFilter ? curFilter!.Value : "";
+                                            var curVal2 = hasFilter ? curFilter!.Value2 : "";
+                                            var operators = GetSupportedOperators(c.FilterType);
+                                            <div class="ui-grid__col-filter-panel" @onclick:stopPropagation="true">
+                                                <div class="ui-grid__filter-op-row" style="margin-bottom:0.35rem;">
+                                                    <select class="ui-input ui-input--sm"
+                                                            style="width:100%;"
+                                                            aria-label="@FilterLabel @c.Title"
+                                                            value="@curOp.ToString()"
+                                                            @onchange="e => OnFilterOperatorChanged(c, e.Value?.ToString())">
+                                                        @foreach (var op in operators)
+                                                        {
+                                                            <option value="@op.ToString()">@OperatorLabel(op)</option>
+                                                        }
+                                                    </select>
+                                                </div>
+                                                @if (c.FilterType == "bool")
+                                                {
+                                                    <div style="display:flex; gap:0.35rem; margin-top:0.35rem;">
+                                                        <button type="button" class="ui-btn ui-btn--primary ui-btn--sm"
+                                                                @onclick="() => ApplyBoolFilterAsync(c, curOp)">
+                                                            @ApplyFilterLabel
+                                                        </button>
+                                                        @if (hasFilter)
+                                                        {
+                                                            <button type="button" class="ui-btn ui-btn--ghost ui-btn--sm" @onclick="() => ClearColumnFilter(c)">@ClearFilterLabel</button>
+                                                        }
+                                                    </div>
+                                                }
+                                                else
+                                                {
+                                                    <UiTextField Small="true"
+                                                                 Placeholder="@FilterPlaceholderText(curOp)"
+                                                                 Value="@curVal"
+                                                                 ValueChanged="v => ApplyColumnFilterAsync(c, v, curOp, curVal2)"
+                                                                 Type="@(c.FilterType)" />
+                                                    @if (curOp == GridFilterOperator.Between)
+                                                    {
+                                                        <div style="margin-top:0.35rem;">
+                                                            <UiTextField Small="true"
+                                                                         Placeholder="To…"
+                                                                         Value="@curVal2"
+                                                                         ValueChanged="v2 => ApplyColumnFilterAsync(c, curVal, curOp, v2)"
+                                                                         Type="@(c.FilterType)" />
+                                                        </div>
+                                                    }
+                                                    @if (hasFilter)
+                                                    {
+                                                        <div style="margin-top:0.35rem;">
+                                                            <button type="button" class="ui-btn ui-btn--ghost ui-btn--sm" @onclick="() => ClearColumnFilter(c)">@ClearFilterLabel</button>
+                                                        </div>
+                                                    }
+                                                }
+                                            </div>
+                                        }
+                                    </div>
+                                }
+                            </div>
+                        </th>
+                    }
+                    @if (EditMode == UiDataGridEditMode.Inline)
+                    {
+                        <th scope="col" class="ui-grid__actions-col">@ActionsLabel</th>
+                    }
+                </tr>
+            </thead>
+            <tbody>
+                @if (VirtualProvider != null)
+                {
+                    @* Server-side range virtualization - always render Virtualize component *@
+                    @if (Loading && _virtualTotalCount == null)
+                    {
+                        @* Initial query loading - show skeleton *@
+                        @for (var r = 0; r < Math.Min(PageSize, 6); r++)
+                        {
+                            <tr aria-hidden="true">
+                                @if (Selectable) { <td class="ui-grid__check"><UiSkeleton Width="18px" Height="18px" /></td> }
+                                @foreach (var c in VisibleColumns)
+                                {
+                                    <td class="@CellClass(c)"><UiSkeleton Width="@(r % 2 == 0 ? "80%" : "60%")" /></td>
+                                }
+                            </tr>
+                        }
+                    }
+                    else if (_virtualTotalCount == 0 && _error == null)
+                    {
+                        @* Valid empty result from provider *@
+                        <tr>
+                            <td colspan="@(_columns.Count(c => c.Visible) + (Selectable ? 1 : 0) + (EditMode == UiDataGridEditMode.Inline ? 1 : 0))" class="ui-grid__empty">
+                                @if (EmptyTemplate != null) { @EmptyTemplate }
+                                else { <UiEmptyState Icon="search" Title="@EmptyTitle" Description="@EmptyDescription" /> }
+                            </td>
+                        </tr>
+                    }
+                    @* Keep the range provider mounted even when the current query is empty. *@
+                    <Virtualize TItem="RenderRow" @ref="_virtualizeRef" ItemsProvider="@LoadVirtualItemsAsync" ItemSize="@VirtualRowHeight" OverscanCount="@VirtualOverscan" SpacerElement="tr">
+                        @{
+                            var row = context.Item;
+                            var isEditing = _editingRow != null && RowKeyEquals(_editingRow, row);
+                            var editRow = isEditing ? _editCopy! : row;
+                            var isSelected = IsRowSelected(row);
+                            var rowKey = context.DisplayKey;
+                            var uniqueKey = context.RenderKey;
+                        }
+                        <tr @key="@uniqueKey" data-row data-row-key="@rowKey" class="@(isSelected ? "is-selected" : null) @(isEditing ? "is-editing" : null) @(_editSaveFailed && isEditing ? "is-edit-error" : null)"
+                            tabindex="@(OnRowClick.HasDelegate ? 0 : null)"
+                            @onclick="() => RowClickedAsync(row)"
+                            @onkeydown="e => RowKeyAsync(e, row)">
+                            @if (Selectable)
+                            {
+                                <td class="ui-grid__check" @onclick:stopPropagation="true">
+                                    <UiCheckbox Checked="isSelected" CheckedChanged="v => ToggleRowAsync(row, v)" aria-label="@SelectRowLabel" />
+                                </td>
+                            }
+                            @foreach (var col in VisibleColumns)
+                            {
+                                var c = col;
+                                <td data-label="@c.Title" class="@CellClass(c)">
+                                    @if (isEditing && c.EditTemplate != null)
+                                    {
+                                        @c.EditTemplate(editRow)
+                                    }
+                                    else if (c.Template != null)
+                                    {
+                                        @c.Template(row)
+                                    }
+                                    else
+                                    {
+                                        @c.Display(row)
+                                    }
+                                </td>
+                            }
+                            @if (EditMode == UiDataGridEditMode.Inline)
+                            {
+                                <td class="ui-grid__actions-col" @onclick:stopPropagation="true">
+                                    @if (isEditing)
+                                    {
+                                        <button type="button" class="ui-btn ui-btn--sm" disabled="@_saveInProgress" @onclick="() => CommitEditAsync(editRow)">@SaveLabel</button>
+                                        <button type="button" class="ui-btn ui-btn--ghost ui-btn--sm" @onclick="CancelEdit">@CancelLabel</button>
+                                    }
+                                    else
+                                    {
+                                        <button type="button" class="ui-iconbtn" @onclick="() => BeginEdit(row)" aria-label="@EditLabel">
+                                            <UiIcon Name="edit" Size="16" />
+                                        </button>
+                                    }
+                                </td>
+                            }
+                        </tr>
+                    </Virtualize>
+                }
+                else if (Loading)
+                {
+                    @* Loading state for non-virtual modes *@
+                    @for (var r = 0; r < Math.Min(PageSize, 6); r++)
+                    {
+                        <tr aria-hidden="true">
+                            @if (Selectable) { <td class="ui-grid__check"><UiSkeleton Width="18px" Height="18px" /></td> }
+                            @foreach (var c in VisibleColumns)
+                            {
+                                <td class="@CellClass(c)"><UiSkeleton Width="@(r % 2 == 0 ? "80%" : "60%")" /></td>
+                            }
+                        </tr>
+                    }
+                }
+                else if (_pageItems.Count == 0 && _error == null)
+                {
+                    @* Empty state for non-virtual modes *@
+                    <tr>
+                        <td colspan="@(_columns.Count(c => c.Visible) + (Selectable ? 1 : 0) + (EditMode == UiDataGridEditMode.Inline ? 1 : 0))" class="ui-grid__empty">
+                            @if (EmptyTemplate != null) { @EmptyTemplate }
+                            else { <UiEmptyState Icon="search" Title="@EmptyTitle" Description="@EmptyDescription" /> }
+                        </td>
+                    </tr>
+                }
+                else if (VirtualizationMode == UiDataGridVirtualization.Enabled)
+                {
+                    @* Page-level rendering virtualization (Items already loaded) *@
+                    <Virtualize TItem="RenderRow" Items="@pageRows" ItemSize="@VirtualRowHeight" OverscanCount="@VirtualOverscan" SpacerElement="tr">
+                        @{
+                            var row = context.Item;
+                            var isEditing = _editingRow != null && RowKeyEquals(_editingRow, row);
+                            var editRow = isEditing ? _editCopy! : row;
+                            var isSelected = IsRowSelected(row);
+                            var rowKey = context.DisplayKey;
+                            var uniqueKey = context.RenderKey;
+                        }
+                        <tr @key="@uniqueKey" data-row data-row-key="@rowKey" class="@(isSelected ? "is-selected" : null) @(isEditing ? "is-editing" : null) @(_editSaveFailed && isEditing ? "is-edit-error" : null)"
+                            tabindex="@(OnRowClick.HasDelegate ? 0 : null)"
+                            @onclick="() => RowClickedAsync(row)"
+                            @onkeydown="e => RowKeyAsync(e, row)">
+                            @if (Selectable)
+                            {
+                                <td class="ui-grid__check" @onclick:stopPropagation="true">
+                                    <UiCheckbox Checked="isSelected" CheckedChanged="v => ToggleRowAsync(row, v)" aria-label="@SelectRowLabel" />
+                                </td>
+                            }
+                            @foreach (var col in VisibleColumns)
+                            {
+                                var c = col;
+                                <td data-label="@c.Title" class="@CellClass(c)">
+                                    @if (isEditing && c.EditTemplate != null)
+                                    {
+                                        @c.EditTemplate(editRow)
+                                    }
+                                    else if (c.Template != null)
+                                    {
+                                        @c.Template(row)
+                                    }
+                                    else
+                                    {
+                                        @c.Display(row)
+                                    }
+                                </td>
+                            }
+                            @if (EditMode == UiDataGridEditMode.Inline)
+                            {
+                                <td class="ui-grid__actions-col" @onclick:stopPropagation="true">
+                                    @if (isEditing)
+                                    {
+                                        <button type="button" class="ui-btn ui-btn--sm" disabled="@_saveInProgress" @onclick="() => CommitEditAsync(editRow)">@SaveLabel</button>
+                                        <button type="button" class="ui-btn ui-btn--ghost ui-btn--sm" @onclick="CancelEdit">@CancelLabel</button>
+                                    }
+                                    else
+                                    {
+                                        <button type="button" class="ui-iconbtn" @onclick="() => BeginEdit(row)" aria-label="@EditLabel">
+                                            <UiIcon Name="edit" Size="16" />
+                                        </button>
+                                    }
+                                </td>
+                            }
+                        </tr>
+                    </Virtualize>
+                }
+                else
+                {
+                    @foreach (var entry in pageRows!)
+                    {
+                        var row = entry.Item;
+                        var isEditing = _editingRow != null && RowKeyEquals(_editingRow, row);
+                        // For editing, use the independent copy so the original is never mutated during editing.
+                        var editRow = isEditing ? _editCopy! : row;
+                        var rowKey = entry.DisplayKey;
+                        var isSelected = IsRowSelected(row);
+                        var uniqueKey = entry.RenderKey;
+                        <tr @key="@uniqueKey" data-row data-row-key="@rowKey" class="@(isSelected ? "is-selected" : null) @(isEditing ? "is-editing" : null) @(_editSaveFailed && isEditing ? "is-edit-error" : null)"
+                            tabindex="@(OnRowClick.HasDelegate ? 0 : null)"
+                            @onclick="() => RowClickedAsync(row)"
+                            @onkeydown="e => RowKeyAsync(e, row)">
+                            @if (Selectable)
+                            {
+                                <td class="ui-grid__check" @onclick:stopPropagation="true">
+                                    <UiCheckbox Checked="isSelected" CheckedChanged="v => ToggleRowAsync(row, v)" aria-label="@SelectRowLabel" />
+                                </td>
+                            }
+                            @foreach (var col in VisibleColumns)
+                            {
+                                var c = col;
+                                <td data-label="@c.Title" class="@CellClass(c)">
+                                    @if (isEditing && c.EditTemplate != null)
+                                    {
+                                        @c.EditTemplate(editRow)
+                                    }
+                                    else if (c.Template != null)
+                                    {
+                                        @c.Template(row)
+                                    }
+                                    else
+                                    {
+                                        @c.Display(row)
+                                    }
+                                </td>
+                            }
+                            @if (EditMode == UiDataGridEditMode.Inline)
+                            {
+                                <td class="ui-grid__actions-col" @onclick:stopPropagation="true">
+                                    @if (isEditing)
+                                    {
+                                        <button type="button" class="ui-btn ui-btn--sm" @onclick="() => CommitEditAsync(editRow)">@SaveLabel</button>
+                                        <button type="button" class="ui-btn ui-btn--ghost ui-btn--sm" @onclick="CancelEdit">@CancelLabel</button>
+                                    }
+                                    else
+                                    {
+                                        <button type="button" class="ui-iconbtn" @onclick="() => BeginEdit(row)" aria-label="@EditLabel">
+                                            <UiIcon Name="edit" Size="16" />
+                                        </button>
+                                    }
+                                </td>
+                            }
+                        </tr>
+                    }
+                }
+            </tbody>
+        </table>
+    </div>
+
+    @* ───────────────────────── Footer ───────────────────────── *@
+    @if (VirtualProvider == null)
+    {
+        <div class="ui-grid__footer">
+            <UiPagination Page="_page" PageSize="PageSize" TotalItems="_filteredCount" PageChanged="PageChangedAsync"
+                          SummaryFormat="@SummaryFormat" PreviousLabel="@PreviousLabel" NextLabel="@NextLabel" PageLabel="@PageLabel" />
+        </div>
+    }
+</div>
+
+@code {
+    // ─────────────────── private state ───────────────────
+    private readonly List<UiColumn<TItem>> _columns = new();
+    private readonly Dictionary<RowIdentity, TItem> _selected = new();
+    private readonly List<(UiColumn<TItem> col, bool desc)> _activeSorts = new();
+    private readonly Dictionary<UiColumn<TItem>, ColumnFilterState> _columnFilters = new();
+
+    private List<TItem> _pageItems = new();
+    private readonly Dictionary<RowIdentity, TItem> _loadedVirtualItems = new();
+    private const int MaxLoadedVirtualItems = 10000; // Prevent unbounded memory growth
+    private int _filteredCount;
+    private int _page = 1;
+    private string _search = "";
+    private IEnumerable<TItem>? _lastItems;
+    private bool _colToggleOpen;
+    private bool _exportOpen;
+    private UiColumn<TItem>? _openFilterCol;
+    private string? _error;
+    /// <summary>Reference to the original row being edited (used for identity comparison only).</summary>
+    private TItem? _editingRow;
+    /// <summary>Independent deep-clone of the row being edited. All EditTemplate bindings target this copy.</summary>
+    private TItem? _editCopy;
+    /// <summary>True when the last save attempt failed — keeps edit mode open with the copy intact.</summary>
+    private bool _editSaveFailed;
+    /// <summary>Prevents overlapping save operations.</summary>
+    private bool _saveInProgress;
+    private readonly object _ctsLock = new();
+    private CancellationTokenSource _cts = new();
+    private ElementReference _scrollRef;
+    // Sequence number guards against stale async responses overwriting newer results.
+    private int _requestSeq;
+    // Export state
+    private bool _exportBusy;
+    private string? _exportError;
+    // Set if component was disposed — prevents post-disposal state updates
+    private bool _disposed;
+
+    // Query caching (Finding B-04)
+    private List<TItem>? _filteredSortedCache;
+    private string? _lastCacheKey;
+
+    // Virtual provider state (Finding B-08, B-09)
+    private int? _virtualTotalCount; // Total count from last virtual query
+    private int _virtualQueryGeneration; // Increments on each query change to prevent stale responses
+    private Virtualize<RenderRow>? _virtualizeRef; // Reference to active Virtualize component
+    private IDataGridVirtualDataProvider<TItem>? _lastVirtualProvider;
+    private int _virtualRangeSequence;
+    private CancellationTokenSource? _virtualQueryCts = new(); // Cancellation for current virtual query generation
+
+    // Optional logger for diagnostic logging (nullable to avoid test failures)
+    [Microsoft.AspNetCore.Components.Inject]
+    private ILogger<UiDataGrid<TItem>>? Logger { get; set; }
+
+    [Inject] private Microsoft.JSInterop.IJSRuntime? _js { get; set; }
+
+    // ─────────────────── Parameters ───────────────────
+
+    // Data sources (mutually exclusive)
+    /// <summary>In-memory data source. The grid filters, sorts and pages it in memory.</summary>
+    [Parameter] public IEnumerable<TItem>? Items { get; set; }
+    /// <summary>Server-side data provider. When set, Items is ignored.</summary>
+    [Parameter] public IDataGridDataProvider<TItem>? ServerProvider { get; set; }
+    /// <summary>
+    /// Server-side virtual data provider for true range-based virtualization.
+    /// When set, Items and ServerProvider are ignored, and VirtualizationMode is forced to Enabled.
+    /// Only the visible range is fetched from the server (no pagination controls).
+    /// </summary>
+    [Parameter] public IDataGridVirtualDataProvider<TItem>? VirtualProvider { get; set; }
+
+    [Parameter] public RenderFragment? Columns { get; set; }
+    [Parameter] public RenderFragment? Toolbar { get; set; }
+    [Parameter] public RenderFragment? EmptyTemplate { get; set; }
+    [Parameter] public int PageSize { get; set; } = 10;
+    [Parameter] public bool Searchable { get; set; } = true;
+    [Parameter] public bool Selectable { get; set; }
+    [Parameter] public bool Loading { get; set; }
+    [Parameter] public bool ShowColumnToggle { get; set; } = true;
+    [Parameter] public bool AllowCsvExport { get; set; }
+    [Parameter] public bool AllowXlsxExport { get; set; }
+    [Parameter] public UiDataGridEditMode EditMode { get; set; } = UiDataGridEditMode.None;
+    [Parameter] public bool MultiSort { get; set; } = true;
+    [Parameter] public IReadOnlyCollection<TItem>? SelectedItems { get; set; }
+    [Parameter] public EventCallback<IReadOnlyCollection<TItem>> SelectedItemsChanged { get; set; }
+    [Parameter] public EventCallback<TItem> OnRowClick { get; set; }
+    [Parameter] public EventCallback<TItem> OnRowSaved { get; set; }
+    [Parameter] public string? Class { get; set; }
+
+    // Virtualization parameters
+    /// <summary>Controls whether row virtualization is enabled. Default: None (all rows render).</summary>
+    [Parameter] public UiDataGridVirtualization VirtualizationMode { get; set; } = UiDataGridVirtualization.None;
+    
+    /// <summary>Fixed height (in pixels) of each virtualized row. Required for accurate virtual scrolling. Default: 48. Must be > 0.</summary>
+    [Parameter] public float VirtualRowHeight { get; set; } = 48f;
+    
+    /// <summary>Number of extra rows to render above and below the visible window. Higher values improve scroll smoothness. Default: 5. Must be >= 0.</summary>
+    [Parameter] public int VirtualOverscan { get; set; } = 5;
+    
+    /// <summary>Optional: Fixed viewport height for virtualized scrolling container (e.g., "400px", "50vh"). If null, viewport grows with content (not recommended for large datasets).</summary>
+    [Parameter] public string? VirtualViewportHeight { get; set; }
+
+    // Stable row identity
+    /// <summary>
+    /// Supplies unique, non-null logical keys for rendering and selection across sorting,
+    /// filtering, scrolling and provider refreshes. Keys use their original type and equality.
+    /// A null or omitted key falls back to item equality. Duplicate identities share selection
+    /// and render independently without a shared Blazor key.
+    /// </summary>
+    [Parameter] public Func<TItem, object>? RowKeySelector { get; set; }
+
+    // CSV/XLSX export callbacks for server-side grids
+    [Parameter] public Func<DataGridRequest, Task<IEnumerable<TItem>>>? ServerExportAll { get; set; }
+
+    // Localisable text
+    [Parameter] public string SearchPlaceholder { get; set; } = "Search…";
+    [Parameter] public string EmptyTitle { get; set; } = "No results";
+    [Parameter] public string EmptyDescription { get; set; } = "Try adjusting your search or filters.";
+    [Parameter] public string SelectedFormat { get; set; } = "{0} selected";
+    [Parameter] public string SummaryFormat { get; set; } = "Showing {0}–{1} of {2}";
+    /// <summary>
+    /// Label for Select All checkbox.
+    /// For virtual grids: defaults to "Select all loaded rows (up to 10,000)"
+    /// For paged grids: defaults to "Select all rows on this page"
+    /// Override to customize messaging.
+    /// </summary>
+    [Parameter] public string? SelectAllLabel { get; set; }
+    
+    private string EffectiveSelectAllLabel
+    {
+        get
+        {
+            if (!string.IsNullOrEmpty(SelectAllLabel))
+                return SelectAllLabel;
+            
+            // Virtual provider: Select all loaded items (bounded by MaxLoadedVirtualItems)
+            if (VirtualProvider != null)
+                return $"Select all loaded rows (up to {MaxLoadedVirtualItems:N0})";
+            
+            // Regular paged grid: Select all on current page
+            return "Select all rows on this page";
+        }
+    }
+    
+    [Parameter] public string SelectRowLabel { get; set; } = "Select row";
+    [Parameter] public string PreviousLabel { get; set; } = "Previous page";
+    [Parameter] public string NextLabel { get; set; } = "Next page";
+    [Parameter] public string PageLabel { get; set; } = "Page";
+    [Parameter] public string ColumnsLabel { get; set; } = "Columns";
+    [Parameter] public string ExportLabel { get; set; } = "Export";
+    [Parameter] public string ClearFilterLabel { get; set; } = "Clear";
+    [Parameter] public string ClearAllFiltersLabel { get; set; } = "Clear all";
+    [Parameter] public string FilterLabel { get; set; } = "Filter";
+    [Parameter] public string FilterPlaceholder { get; set; } = "Filter…";
+    [Parameter] public string ApplyFilterLabel { get; set; } = "Apply";
+    [Parameter] public string SaveLabel { get; set; } = "Save";
+    [Parameter] public string CancelLabel { get; set; } = "Cancel";
+    [Parameter] public string EditLabel { get; set; } = "Edit";
+    [Parameter] public string ActionsLabel { get; set; } = "Actions";
+    [Parameter] public string RetryLabel { get; set; } = "Retry";
+    [Parameter] public string ErrorMessage { get; set; } = "Failed to load data.";
+    [Parameter] public string ExportCsvCurrentPageLabel { get; set; } = "CSV — current page";
+    [Parameter] public string ExportCsvAllLabel { get; set; } = "CSV — all rows";
+    [Parameter] public string ExportXlsxCurrentPageLabel { get; set; } = "Excel — current page";
+    [Parameter] public string ExportXlsxAllLabel { get; set; } = "Excel — all rows";
+    [Parameter] public string ExportAllUnavailableLabel { get; set; } = "Full export requires ServerExportAll or GetAllForExportAsync.";
+    [Parameter] public string ExportErrorMessage { get; set; } = "Export failed.";
+
+    [Parameter] public string VirtualCurrentPageUnavailableLabel { get; set; } = "Current page export is unavailable for virtual data.";
+
+    // ─────────────────── computed ───────────────────
+
+    private bool CanExport => AllowCsvExport || AllowXlsxExport;
+    private bool AllOnPageSelected
+    {
+        get
+        {
+            // For virtual provider, check loaded virtual items
+            if (VirtualProvider != null)
+                return _loadedVirtualItems.Count > 0 && _loadedVirtualItems.Keys.All(_selected.ContainsKey);
+            
+            // For other modes, use page items
+            return _pageItems.Count > 0 && _pageItems.All(IsRowSelected);
+        }
+    }
+    private IEnumerable<UiColumn<TItem>> VisibleColumns => _columns.Where(c => c.Visible);
+
+    // ─────────────────── lifecycle ───────────────────
+
+    private void SafeInvokeAsync(Func<Task> work)
+    {
+        _ = InvokeAsync(async () =>
+        {
+            if (_disposed) return;
+            try 
+            { 
+                await work(); 
+            }
+            catch (OperationCanceledException) 
+            { 
+                // Expected during cancellation — safe to ignore
+            }
+            catch (Exception ex)
+            {
+                // Log diagnostic details for debugging (if logger available)
+                Logger?.LogError(ex, "Background task failed in DataGrid component");
+                
+                // Display safe generic message to users (never expose exception details)
+                if (!_disposed)
+                {
+                    _error = ErrorMessage; // Generic message only
+                    Loading = false;
+                }
+            }
+            if (!_disposed) StateHasChanged();
+        });
+    }
+
+    internal void RegisterColumn(UiColumn<TItem> column)
+    {
+        _columns.Add(column);
+        SafeInvokeAsync(RecomputeAsync);
+    }
+
+    internal void UnregisterColumn(UiColumn<TItem> column)
+    {
+        _columns.Remove(column);
+        _activeSorts.RemoveAll(s => s.col == column);
+        _columnFilters.Remove(column);
+        SafeInvokeAsync(RecomputeAsync);
+    }
+
+    internal void ColumnChanged() => SafeInvokeAsync(RecomputeAsync);
+
+    /// <summary>Forces the grid to reload data from page 1 and invalidates cache.</summary>
+    public void Refresh() 
+    { 
+        _page = 1; 
+        _filteredSortedCache = null; // Invalidate cache
+        _lastCacheKey = null;
+        SafeInvokeAsync(RecomputeAsync); 
+    }
+    public Task RefreshAsync() 
+    { 
+        _page = 1; 
+        _filteredSortedCache = null; // Invalidate cache
+        _lastCacheKey = null;
+        return RecomputeAsync(); 
+    }
+
+    /// <summary>Called by UiColumn when its Visible property changes.</summary>
+    public void RequestRefresh() => SafeInvokeAsync(RecomputeAsync);
+
+    protected override void OnParametersSet()
+    {
+        // B-03: Validate virtualization configuration
+        ValidateVirtualizationParameters();
+        
+        if (SelectedItems != null)
+        {
+            _selected.Clear();
+            foreach (var item in SelectedItems)
+                _selected.TryAdd(GetRowIdentity(item), item);
+        }
+        if (!ReferenceEquals(_lastItems, Items))
+        {
+            _lastItems = Items;
+            _filteredSortedCache = null;
+            _page = 1;
+        }
+        if (ServerProvider == null && VirtualProvider == null) RecomputeInMemory();
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        var previousVirtualProvider = _lastVirtualProvider;
+        _lastVirtualProvider = VirtualProvider;
+        if (previousVirtualProvider != null && !ReferenceEquals(previousVirtualProvider, VirtualProvider))
+        {
+            if (VirtualProvider != null)
+                await RefreshVirtualQueryAsync();
+            else
+            {
+                InvalidateVirtualQuery();
+                _virtualizeRef = null;
+                _virtualTotalCount = null;
+            }
+        }
+        if (ServerProvider != null && VirtualProvider == null) await RecomputeServerAsync();
+    }
+
+    // ─────────────────── in-memory recompute ───────────────────
+    // ─────────────────── in-memory recompute with caching (Finding B-04) ───────────────────
+    
+    private void RecomputeInMemory()
+    {
+        // Generate cache key based on query state
+        var cacheKey = GenerateCacheKey();
+        
+        // Use cached result if query state hasn't changed
+        List<TItem> filteredSorted;
+        if (_lastCacheKey == cacheKey && _filteredSortedCache != null)
+        {
+            filteredSorted = _filteredSortedCache;
+        }
+        else
+        {
+            filteredSorted = QueryInMemory().ToList();
+
+            // Cache the result
+            _filteredSortedCache = filteredSorted;
+            _lastCacheKey = cacheKey;
+        }
+
+        // Now extract the current page from cached results (only this part runs on scroll/page change)
+        _filteredCount = filteredSorted.Count;
+        var pages = PageSize <= 0 ? 1 : Math.Max(1, (int)Math.Ceiling(filteredSorted.Count / (double)PageSize));
+        _page = Math.Clamp(_page, 1, pages);
+        _pageItems = filteredSorted.Skip((_page - 1) * PageSize).Take(PageSize).ToList();
+    }
+
+    private IEnumerable<TItem> QueryInMemory()
+    {
+        IEnumerable<TItem> query = Items ?? Array.Empty<TItem>();
+
+        if (Searchable && !string.IsNullOrWhiteSpace(_search))
+        {
+            var term = _search.Trim();
+            var searchable = _columns.Where(c => c.Searchable && c.Value != null).ToList();
+            query = query.Where(item => searchable.Any(c => c.Display(item).Contains(term, StringComparison.CurrentCultureIgnoreCase)));
+        }
+
+        foreach (var (col, filter) in _columnFilters)
+        {
+            var c = col;
+            var f = filter;
+            if (string.IsNullOrWhiteSpace(f.Value) && f.Operator != GridFilterOperator.IsNull && f.Operator != GridFilterOperator.IsNotNull && f.Operator != GridFilterOperator.IsTrue && f.Operator != GridFilterOperator.IsFalse)
+                continue;
+
+            query = FilterQuery(query, c, f);
+        }
+
+        // Multi-sort
+        IOrderedEnumerable<TItem>? ordered = null;
+        for (var i = 0; i < _activeSorts.Count; i++)
+        {
+            var (col, desc) = _activeSorts[i];
+            var c = col;
+            var comparer = Comparer<object?>.Create(CompareValues);
+            if (i == 0)
+                ordered = desc ? query.OrderByDescending(item => c.Raw(item), comparer) : query.OrderBy(item => c.Raw(item), comparer);
+            else
+                ordered = desc ? ordered!.ThenByDescending(item => c.Raw(item), comparer) : ordered!.ThenBy(item => c.Raw(item), comparer);
+        }
+        if (ordered != null) query = ordered;
+        return query;
+    }
+
+    private string GenerateCacheKey()
+    {
+        // Items reference changes invalidate the cache in OnParametersSet.
+        // Changing page does NOT invalidate the cache
+        var sb = new System.Text.StringBuilder();
+        sb.Append(_search);
+        sb.Append('|');
+        foreach (var (col, filter) in _columnFilters)
+        {
+            sb.Append(col.Field ?? col.Title);
+            sb.Append(':');
+            sb.Append(filter.Operator);
+            sb.Append(':');
+            sb.Append(filter.Value);
+            sb.Append(':');
+            sb.Append(filter.Value2);
+            sb.Append('|');
+        }
+        foreach (var (col, desc) in _activeSorts)
+        {
+            sb.Append(col.Field ?? col.Title);
+            sb.Append(':');
+            sb.Append(desc ? 'D' : 'A');
+            sb.Append('|');
+        }
+        return sb.ToString();
+    }
+
+    private static IEnumerable<TItem> FilterQuery(IEnumerable<TItem> source, UiColumn<TItem> col, ColumnFilterState f)
+    {
+        return source.Where(item =>
+        {
+            var raw = col.Raw(item);
+            var display = col.Display(item);
+
+            switch (f.Operator)
+            {
+                case GridFilterOperator.Contains:
+                    return display.Contains(f.Value, StringComparison.CurrentCultureIgnoreCase);
+                case GridFilterOperator.NotContains:
+                    return !display.Contains(f.Value, StringComparison.CurrentCultureIgnoreCase);
+                case GridFilterOperator.StartsWith:
+                    return display.StartsWith(f.Value, StringComparison.CurrentCultureIgnoreCase);
+                case GridFilterOperator.EndsWith:
+                    return display.EndsWith(f.Value, StringComparison.CurrentCultureIgnoreCase);
+                case GridFilterOperator.Equals:
+                    if (col.FilterType == "number" && double.TryParse(f.Value, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var targetNum))
+                    {
+                        return raw != null && Convert.ToDouble(raw, System.Globalization.CultureInfo.InvariantCulture).Equals(targetNum);
+                    }
+                    if (col.FilterType == "date" && DateTime.TryParse(f.Value, out var targetDt))
+                    {
+                        return raw is DateTime dt ? dt.Date == targetDt.Date :
+                               raw is DateOnly donly ? donly == DateOnly.FromDateTime(targetDt) :
+                               raw is DateTimeOffset dto && dto.Date == targetDt.Date;
+                    }
+                    return string.Equals(display, f.Value, StringComparison.CurrentCultureIgnoreCase);
+                case GridFilterOperator.NotEquals:
+                    if (col.FilterType == "number" && double.TryParse(f.Value, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var targetNumNe))
+                    {
+                        return raw == null || !Convert.ToDouble(raw, System.Globalization.CultureInfo.InvariantCulture).Equals(targetNumNe);
+                    }
+                    return !string.Equals(display, f.Value, StringComparison.CurrentCultureIgnoreCase);
+
+                case GridFilterOperator.GreaterThan:
+                case GridFilterOperator.After:
+                    if (col.FilterType == "date" && DateTime.TryParse(f.Value, out var afterDt))
+                    {
+                        var itemDate = raw is DateTime dt ? dt.Date : raw is DateOnly donly ? donly.ToDateTime(TimeOnly.MinValue) : raw is DateTimeOffset dto ? dto.Date : (DateTime?)null;
+                        return itemDate.HasValue && itemDate.Value > afterDt.Date;
+                    }
+                    if (double.TryParse(f.Value, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var gtNum))
+                    {
+                        return raw != null && Convert.ToDouble(raw, System.Globalization.CultureInfo.InvariantCulture) > gtNum;
+                    }
+                    return false;
+
+                case GridFilterOperator.GreaterThanOrEqual:
+                    if (double.TryParse(f.Value, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var gteNum))
+                    {
+                        return raw != null && Convert.ToDouble(raw, System.Globalization.CultureInfo.InvariantCulture) >= gteNum;
+                    }
+                    return false;
+
+                case GridFilterOperator.LessThan:
+                case GridFilterOperator.Before:
+                    if (col.FilterType == "date" && DateTime.TryParse(f.Value, out var beforeDt))
+                    {
+                        var itemDate = raw is DateTime dt ? dt.Date : raw is DateOnly donly ? donly.ToDateTime(TimeOnly.MinValue) : raw is DateTimeOffset dto ? dto.Date : (DateTime?)null;
+                        return itemDate.HasValue && itemDate.Value < beforeDt.Date;
+                    }
+                    if (double.TryParse(f.Value, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var ltNum))
+                    {
+                        return raw != null && Convert.ToDouble(raw, System.Globalization.CultureInfo.InvariantCulture) < ltNum;
+                    }
+                    return false;
+
+                case GridFilterOperator.LessThanOrEqual:
+                    if (double.TryParse(f.Value, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var lteNum))
+                    {
+                        return raw != null && Convert.ToDouble(raw, System.Globalization.CultureInfo.InvariantCulture) <= lteNum;
+                    }
+                    return false;
+
+                case GridFilterOperator.Between:
+                    if (col.FilterType == "date" && DateTime.TryParse(f.Value, out var dt1) && DateTime.TryParse(f.Value2, out var dt2))
+                    {
+                        var itemDate = raw is DateTime dt ? dt.Date : raw is DateOnly donly ? donly.ToDateTime(TimeOnly.MinValue) : raw is DateTimeOffset dto ? dto.Date : (DateTime?)null;
+                        return itemDate.HasValue && itemDate.Value >= dt1.Date && itemDate.Value <= dt2.Date;
+                    }
+                    if (double.TryParse(f.Value, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var n1) &&
+                        double.TryParse(f.Value2, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var n2))
+                    {
+                        if (raw == null) return false;
+                        var val = Convert.ToDouble(raw, System.Globalization.CultureInfo.InvariantCulture);
+                        return val >= Math.Min(n1, n2) && val <= Math.Max(n1, n2);
+                    }
+                    return false;
+
+                case GridFilterOperator.IsNull:
+                    return raw == null || string.IsNullOrEmpty(display);
+                case GridFilterOperator.IsNotNull:
+                    return raw != null && !string.IsNullOrEmpty(display);
+
+                case GridFilterOperator.IsTrue:
+                case GridFilterOperator.True:
+                    return raw is bool bTrue ? bTrue : bool.TryParse(display, out var parsedTrue) && parsedTrue;
+                case GridFilterOperator.IsFalse:
+                case GridFilterOperator.False:
+                    return raw is bool bFalse ? !bFalse : bool.TryParse(display, out var parsedFalse) && !parsedFalse;
+
+                default:
+                    return true;
+            }
+        });
+    }
+
+    private async Task RecomputeServerAsync()
+    {
+        if (ServerProvider == null || _disposed) return;
+
+        // Assign request sequence BEFORE any asynchronous operations
+        var seq = Interlocked.Increment(ref _requestSeq);
+
+        // Safely replace CancellationTokenSource under lock
+        CancellationTokenSource oldCts;
+        CancellationTokenSource newCts;
+        CancellationToken token;
+        
+        lock (_ctsLock)
+        {
+            if (_disposed) return;
+            oldCts = _cts;
+            _cts = newCts = new CancellationTokenSource();
+            token = newCts.Token; // Capture token while still under lock
+        }
+
+        // Cancel and dispose old CTS outside the lock to avoid blocking
+        try { await oldCts.CancelAsync(); }
+        catch (ObjectDisposedException) { }
+        finally { oldCts.Dispose(); }
+
+        // Check if request is still relevant before proceeding
+        if (seq != _requestSeq || _disposed || token.IsCancellationRequested) return;
+
+        Loading = true;
+        _error = null;
+        StateHasChanged();
+        
+        try
+        {
+            var req = BuildRequest(token);
+            var result = await ServerProvider.GetDataAsync(req);
+
+            // Only update state if this is still the current request
+            if (!token.IsCancellationRequested && seq == _requestSeq && !_disposed)
+            {
+                _pageItems = result.Items.ToList();
+                _filteredCount = result.TotalCount;
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // Expected during cancellation — do not log as error
+        }
+        catch (Exception ex)
+        {
+            // Only set error if this is still the current request
+            if (seq == _requestSeq && !_disposed)
+            {
+                Logger?.LogError(ex, "Server data provider failed for DataGrid");
+                _error = ErrorMessage;
+            }
+        }
+        finally
+        {
+            // Only update loading state if this is still the current request
+            if (!token.IsCancellationRequested && seq == _requestSeq && !_disposed)
+            {
+                Loading = false;
+                StateHasChanged();
+            }
+        }
+    }
+
+    private DataGridRequest BuildRequest(CancellationToken ct) => new()
+    {
+        Page = _page,
+        PageSize = PageSize,
+        GlobalSearch = string.IsNullOrWhiteSpace(_search) ? null : _search.Trim(),
+        Sorts = _activeSorts.Select(s => new GridSortDescriptor(s.col.Field ?? s.col.Title, s.desc)).ToList(),
+        Filters = _columnFilters.Select(kvp =>
+            new GridFilterDescriptor(
+                kvp.Key.Field ?? kvp.Key.Title,
+                kvp.Value.Operator,
+                kvp.Value.Value,
+                kvp.Value.Value2)
+        ).ToList(),
+        CancellationToken = ct,
+    };
+
+    /// <summary>
+    /// Recomputes grid data after query changes (search, filter, sort).
+    /// For VirtualProvider: increments query generation and refreshes Virtualize component (Finding B-09).
+    /// For ServerProvider: fetches new page from server.
+    /// For Items: recomputes in-memory filtering/sorting with caching.
+    /// </summary>
+    private Task RecomputeAsync()
+    {
+        if (VirtualProvider != null)
+        {
+            return RefreshVirtualQueryAsync();
+        }
+        
+        if (ServerProvider != null)
+        {
+            return RecomputeServerAsync();
+        }
+        
+        RecomputeInMemory();
+        return Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// Refreshes the virtual query by incrementing query generation and calling Virtualize.RefreshDataAsync.
+    /// This causes Virtualize to re-request data with the new search/filter/sort parameters.
+    /// </summary>
+    private async Task RefreshVirtualQueryAsync()
+    {
+        if (VirtualProvider == null || _disposed)
+            return;
+
+        InvalidateVirtualQuery();
+        if (_virtualizeRef != null)
+            await _virtualizeRef.RefreshDataAsync();
+
+        if (!_disposed) StateHasChanged();
+    }
+
+    private void InvalidateVirtualQuery()
+    {
+        _virtualQueryGeneration++;
+        _loadedVirtualItems.Clear();
+        _exportError = null;
+        var oldCts = _virtualQueryCts;
+        _virtualQueryCts = new CancellationTokenSource();
+        if (oldCts != null)
+        {
+            using (oldCts) oldCts.Cancel();
+        }
+    }
+
+    private Task RetryAsync() => RecomputeAsync();
+
+    // ─────────────────── sorting ───────────────────
+    private async Task SortAsync(UiColumn<TItem> column)
+    {
+        var existing = _activeSorts.FindIndex(s => s.col == column);
+        if (existing >= 0)
+        {
+            var (col, desc) = _activeSorts[existing];
+            if (desc)
+            {
+                _activeSorts.RemoveAt(existing);
+            }
+            else
+            {
+                _activeSorts[existing] = (col, true);
+            }
+        }
+        else
+        {
+            if (!MultiSort) _activeSorts.Clear();
+            _activeSorts.Add((column, false));
+        }
+        _page = 1;
+        await RecomputeAsync();
+    }
+
+    private string SortDir(UiColumn<TItem> c)
+    {
+        var idx = _activeSorts.FindIndex(s => s.col == c);
+        if (idx < 0) return "none";
+        return _activeSorts[idx].desc ? "desc" : "asc";
+    }
+
+    private string SortAria(UiColumn<TItem> c)
+    {
+        var idx = _activeSorts.FindIndex(s => s.col == c);
+        if (idx < 0) return "none";
+        return _activeSorts[idx].desc ? "descending" : "ascending";
+    }
+
+    // ─────────────────── search & filter ───────────────────
+    private async Task OnSearchChangedAsync(string? text) { _search = text ?? ""; _page = 1; await RecomputeAsync(); }
+
+    private void ToggleFilterPanel(UiColumn<TItem> col)
+    {
+        _openFilterCol = _openFilterCol == col ? null : col;
+    }
+
+    private string FilterPlaceholderText(GridFilterOperator op) =>
+        op == GridFilterOperator.Between ? "From…" : FilterPlaceholder;
+
+    private Task ApplyBoolFilterAsync(UiColumn<TItem> col, GridFilterOperator curOp) =>
+        ApplyColumnFilterAsync(col, curOp == GridFilterOperator.IsFalse ? "false" : "true", curOp);
+
+    public async Task ApplyColumnFilterAsync(UiColumn<TItem> col, string? value, GridFilterOperator? op = null, string? value2 = null)
+    {
+        var chosenOp = op ?? GetDefaultOperator(col.FilterType);
+        if (string.IsNullOrWhiteSpace(value) && chosenOp != GridFilterOperator.IsTrue && chosenOp != GridFilterOperator.IsFalse)
+        {
+            _columnFilters.Remove(col);
+        }
+        else
+        {
+            _columnFilters[col] = new ColumnFilterState
+            {
+                Operator = chosenOp,
+                Value = value ?? "",
+                Value2 = value2
+            };
+        }
+        _page = 1;
+        await RecomputeAsync();
+    }
+
+    private async Task OnFilterOperatorChanged(UiColumn<TItem> col, string? opStr)
+    {
+        if (Enum.TryParse<GridFilterOperator>(opStr, out var op))
+        {
+            if (_columnFilters.TryGetValue(col, out var existing))
+            {
+                existing.Operator = op;
+                await RecomputeAsync();
+            }
+            else
+            {
+                _columnFilters[col] = new ColumnFilterState
+                {
+                    Operator = op,
+                    Value = "",
+                    Value2 = null
+                };
+            }
+        }
+    }
+
+    public sealed class ColumnFilterState
+    {
+        public GridFilterOperator Operator { get; set; }
+        public string Value { get; set; } = "";
+        public string? Value2 { get; set; }
+    }
+
+    private static string FormatFilterChip(ColumnFilterState f)
+    {
+        if (f.Operator == GridFilterOperator.Between)
+            return $"{f.Value} .. {f.Value2}";
+        if (f.Operator == GridFilterOperator.IsTrue)
+            return "Yes";
+        if (f.Operator == GridFilterOperator.IsFalse)
+            return "No";
+        return f.Value;
+    }
+
+    private static GridFilterOperator GetDefaultOperator(string? filterType) => filterType switch
+    {
+        "number" => GridFilterOperator.Equals,
+        "date"   => GridFilterOperator.Equals,
+        "bool"   => GridFilterOperator.IsTrue,
+        _        => GridFilterOperator.Contains,
+    };
+
+    private static IReadOnlyList<GridFilterOperator> GetSupportedOperators(string? filterType) => filterType switch
+    {
+        "number" => new[]
+        {
+            GridFilterOperator.Equals,
+            GridFilterOperator.NotEquals,
+            GridFilterOperator.GreaterThan,
+            GridFilterOperator.GreaterThanOrEqual,
+            GridFilterOperator.LessThan,
+            GridFilterOperator.LessThanOrEqual,
+            GridFilterOperator.Between,
+        },
+        "date" => new[]
+        {
+            GridFilterOperator.Equals,
+            GridFilterOperator.Before,
+            GridFilterOperator.After,
+            GridFilterOperator.Between,
+        },
+        "bool" => new[]
+        {
+            GridFilterOperator.IsTrue,
+            GridFilterOperator.IsFalse,
+        },
+        _ => new[]
+        {
+            GridFilterOperator.Contains,
+            GridFilterOperator.Equals,
+            GridFilterOperator.StartsWith,
+            GridFilterOperator.EndsWith,
+        },
+    };
+
+    private static string OperatorLabel(GridFilterOperator op) => op switch
+    {
+        GridFilterOperator.Contains => "Contains",
+        GridFilterOperator.Equals => "Equals",
+        GridFilterOperator.NotEquals => "Not Equals",
+        GridFilterOperator.StartsWith => "Starts With",
+        GridFilterOperator.EndsWith => "Ends With",
+        GridFilterOperator.GreaterThan => "> Greater than",
+        GridFilterOperator.GreaterThanOrEqual => "≥ Greater or equal",
+        GridFilterOperator.LessThan => "< Less than",
+        GridFilterOperator.LessThanOrEqual => "≤ Less or equal",
+        GridFilterOperator.Between => "Between",
+        GridFilterOperator.Before => "Before",
+        GridFilterOperator.After => "After",
+        GridFilterOperator.IsTrue => "True",
+        GridFilterOperator.IsFalse => "False",
+        _ => op.ToString(),
+    };
+
+    private async Task ClearColumnFilter(UiColumn<TItem> col)
+    {
+        _columnFilters.Remove(col);
+        _openFilterCol = null;
+        _page = 1;
+        await RecomputeAsync();
+    }
+
+    private async Task ClearAllFilters()
+    {
+        _columnFilters.Clear();
+        _search = "";
+        _openFilterCol = null;
+        _page = 1;
+        await RecomputeAsync();
+    }
+
+    // ─────────────────── pagination ───────────────────
+    private async Task PageChangedAsync(int page) { _page = page; await RecomputeAsync(); }
+
+    // ─────────────────── row click / keyboard ───────────────────
+    private async Task RowClickedAsync(TItem item) { if (OnRowClick.HasDelegate) await OnRowClick.InvokeAsync(item); }
+    private async Task RowKeyAsync(KeyboardEventArgs e, TItem item)
+    {
+        if (OnRowClick.HasDelegate && (e.Key == "Enter" || e.Key == " ")) await OnRowClick.InvokeAsync(item);
+    }
+
+    // ─────────────────── column visibility ───────────────────
+    private void ToggleColumnVisibility(UiColumn<TItem> col) { col.Visible = !col.Visible; }
+
+    // ─────────────────── inline editing (copy-on-edit) ───────────────────
+
+    /// <summary>
+    /// Begin editing a row. Creates an independent deep clone via JSON round-trip so that
+    /// all edit-template bindings target the copy, never the original.
+    /// <br/>
+    /// Requirement: <typeparamref name="TItem"/> must be JSON-serialisable (records and POCOs with public
+    /// properties always qualify). Reference cycles or non-serialisable types will throw at runtime.
+    /// </summary>
+    private void BeginEdit(TItem item)
+    {
+        _editingRow = item;
+        _editCopy = CloneItem(item);
+        _editSaveFailed = false;
+    }
+
+    /// <summary>Discard the edit copy. The original row is completely unchanged.</summary>
+    private void CancelEdit()
+    {
+        _editingRow = default;
+        _editCopy = default;
+        _editSaveFailed = false;
+    }
+
+    /// <summary>
+    /// Save the edited copy. If <see cref="OnRowSaved"/> throws, editing remains open with
+    /// the copy intact so the user does not lose their changes.
+    /// Exception is logged and preserved edit state allows retry.
+    /// </summary>
+    private async Task CommitEditAsync(TItem editedCopy)
+    {
+        // Guard against overlapping save operations (Finding B-06)
+        if (_saveInProgress)
+        {
+            Logger?.LogWarning("Ignoring duplicate save attempt while save is in progress");
+            return;
+        }
+
+        _saveInProgress = true;
+        _editSaveFailed = false;
+        try
+        {
+            if (OnRowSaved.HasDelegate)
+                await OnRowSaved.InvokeAsync(editedCopy);
+            // Only clear edit state after a successful save
+            _editingRow = default;
+            _editCopy = default;
+            _error = null; // Clear any previous errors
+        }
+        catch (Exception ex)
+        {
+            // Log diagnostic details for debugging
+            Logger?.LogError(ex, "Save failed for edited row in DataGrid");
+            
+            // Keep edit mode open — the copy still holds the user's changes
+            _editSaveFailed = true;
+            
+            // Set user-facing error message
+            _error = "Save failed. Please try again.";
+            
+            // Do NOT re-throw - prevent circuit termination in Blazor Server
+        }
+        finally
+        {
+            _saveInProgress = false;
+        }
+    }
+
+    /// <summary>
+    /// Deep-clones <paramref name="item"/> via JSON serialisation.
+    /// Primitive types, records, and normal POCOs with public properties always work.
+    /// </summary>
+    private static TItem CloneItem(TItem item)
+    {
+        var json = System.Text.Json.JsonSerializer.Serialize(item);
+        return System.Text.Json.JsonSerializer.Deserialize<TItem>(json)
+               ?? throw new InvalidOperationException("Failed to clone row item for editing.");
+    }
+
+    // ─────────────────── Row identity & selection helpers (Finding B-05) ───────────────────
+
+    // ─────────────────── Row Identity Management (Audit Finding 3) ───────────────────
+
+    private readonly record struct RowIdentity(Type? KeyType, object? Key, TItem? FallbackItem);
+    private sealed record RenderRow(TItem Item, object? DisplayKey, object RenderKey);
+
+    private RowIdentity GetRowIdentity(TItem row)
+    {
+        var key = row is null ? null : RowKeySelector?.Invoke(row);
+        return key is null ? new(null, null, row) : new(key.GetType(), key, default);
+    }
+
+    private List<RenderRow> GetRenderRows(IEnumerable<TItem> items)
+    {
+        var rows = items.Select(item => (Item: item, Identity: GetRowIdentity(item))).ToList();
+        var seen = new HashSet<RowIdentity>();
+        var duplicates = new HashSet<RowIdentity>();
+        foreach (var row in rows)
+            if (!seen.Add(row.Identity)) duplicates.Add(row.Identity);
+
+        // Duplicate identities cannot preserve per-row render state. Give each occurrence a
+        // distinct render-only key so Blazor cannot transfer state between duplicate rows.
+        return rows.Select(row => new RenderRow(row.Item, row.Identity.Key ?? (object?)row.Item,
+            duplicates.Contains(row.Identity) ? new object() : row.Identity)).ToList();
+    }
+
+    private bool RowKeyEquals(TItem a, TItem b) => GetRowIdentity(a).Equals(GetRowIdentity(b));
+
+    private bool IsRowSelected(TItem row) => _selected.ContainsKey(GetRowIdentity(row));
+
+    private void SetRowSelected(TItem item, bool selected)
+    {
+        var identity = GetRowIdentity(item);
+        if (selected)
+            _selected.TryAdd(identity, item);
+        else
+            _selected.Remove(identity);
+    }
+
+    private async Task ToggleRowAsync(TItem item, bool selected)
+    {
+        SetRowSelected(item, selected);
+        await SelectedItemsChanged.InvokeAsync(_selected.Values.ToList());
+    }
+
+    /// <summary>
+    /// Toggles selection for all items in the current selection scope.
+    /// 
+    /// Selection scope:
+    /// - VirtualProvider: All loaded items (up to MaxLoadedVirtualItems = 10,000).
+    ///   Items loaded after this limit are NOT automatically selected.
+    /// - Paged grids: All items on the current page.
+    /// - In-memory grids: All items on the current page.
+    /// 
+    /// Note: This does NOT select all server records. For full dataset selection,
+    /// implement custom logic using GetAllForExportAsync or similar server API.
+    /// </summary>
+    private async Task ToggleAllAsync(bool selected)
+    {
+        IEnumerable<TItem> scope = VirtualProvider != null ? _loadedVirtualItems.Values : _pageItems;
+        foreach (var item in scope)
+            SetRowSelected(item, selected);
+
+        await SelectedItemsChanged.InvokeAsync(_selected.Values.ToList());
+    }
+
+    // ─────────────────── Virtual data provider support (Finding B-01, B-09, B-10, B-11) ───────────────────
+
+    /// <summary>
+    /// ItemsProvider for Blazor Virtualize component.
+    /// Handles range requests, cancellation, query generations, and loading states.
+    /// </summary>
+    private async ValueTask<ItemsProviderResult<RenderRow>> LoadVirtualItemsAsync(ItemsProviderRequest request)
+    {
+        var empty = new ItemsProviderResult<RenderRow>(Array.Empty<RenderRow>(), 0);
+        var provider = VirtualProvider;
+        if (provider == null || _disposed || request.CancellationToken.IsCancellationRequested)
+            return empty;
+
+        var generation = _virtualQueryGeneration;
+        var sequence = ++_virtualRangeSequence;
+        using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(
+            request.CancellationToken, _virtualQueryCts?.Token ?? CancellationToken.None);
+        var token = linkedCts.Token;
+        bool IsCurrent() => !token.IsCancellationRequested && !_disposed &&
+            generation == _virtualQueryGeneration && sequence == _virtualRangeSequence &&
+            ReferenceEquals(provider, VirtualProvider);
+
+        try
+        {
+            var result = await provider.GetVirtualDataAsync(BuildVirtualRequest(request.StartIndex, request.Count, token));
+            if (!IsCurrent()) return empty;
+
+            if (result == null || result.TotalCount < 0)
+            {
+                Logger?.LogWarning("VirtualProvider returned an invalid response");
+                return empty;
+            }
+
+            var rows = GetRenderRows(result.Items);
+            var renderGrid = _virtualTotalCount != result.TotalCount || Loading || _error != null;
+            _virtualTotalCount = result.TotalCount;
+            _error = null;
+            Loading = false;
+
+            var allSelectedBefore = Selectable && AllOnPageSelected;
+            foreach (var item in result.Items)
+            {
+                if (_loadedVirtualItems.Count >= MaxLoadedVirtualItems)
+                    break;
+                _loadedVirtualItems.TryAdd(GetRowIdentity(item), item);
+            }
+
+            if (renderGrid || (Selectable && allSelectedBefore != AllOnPageSelected)) StateHasChanged();
+            return new ItemsProviderResult<RenderRow>(rows, result.TotalCount);
+        }
+        catch (OperationCanceledException) when (!IsCurrent())
+        {
+            return empty;
+        }
+        catch (Exception ex)
+        {
+            if (IsCurrent())
+            {
+                Logger?.LogError(ex, "Virtual data provider failed for DataGrid");
+                _error = ErrorMessage;
+                _virtualTotalCount = 0;
+                Loading = false;
+                StateHasChanged();
+            }
+            return empty;
+        }
+    }
+
+    private DataGridVirtualRequest BuildVirtualRequest(int startIndex, int count, CancellationToken ct) => new()
+    {
+        StartIndex = startIndex,
+        // Don't silently truncate - let Virtualize handle its own viewport (Finding B-11)
+        // Provider can implement its own batching strategy if needed
+        Count = count,
+        GlobalSearch = string.IsNullOrWhiteSpace(_search) ? null : _search.Trim(),
+        Sorts = _activeSorts.Select(s => new GridSortDescriptor(s.col.Field ?? s.col.Title, s.desc)).ToList(),
+        Filters = _columnFilters.Select(kvp =>
+            new GridFilterDescriptor(
+                kvp.Key.Field ?? kvp.Key.Title,
+                kvp.Value.Operator,
+                kvp.Value.Value,
+                kvp.Value.Value2)
+        ).ToList(),
+        CancellationToken = ct,
+    };
+
+    // ─────────────────── export ───────────────────
+
+    private Task ExportCsvAsync(DataGridExportScope scope) => ExportAsync(scope, xlsx: false);
+
+    private Task ExportXlsxAsync(DataGridExportScope scope) => ExportAsync(scope, xlsx: true);
+
+    private async Task ExportAsync(DataGridExportScope scope, bool xlsx)
+    {
+        if (_exportBusy || _disposed) return;
+
+        _exportOpen = false;
+        _exportBusy = true;
+        _exportError = null;
+        var generation = _virtualQueryGeneration;
+        var provider = VirtualProvider;
+        bool IsCurrent() => !_disposed && generation == _virtualQueryGeneration &&
+            ReferenceEquals(provider, VirtualProvider);
+        StateHasChanged();
+        try
+        {
+            var rows = await GetExportRowsAsync(scope);
+            if (!IsCurrent()) return;
+
+            if (xlsx)
+            {
+                await DownloadFileAsync("export.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", BuildXlsx(rows));
+                return;
+            }
+
+            var csv = BuildCsv(rows);
+            
+            // Add UTF-8 BOM explicitly for Excel compatibility
+            var utf8 = System.Text.Encoding.UTF8;
+            var csvBytes = utf8.GetBytes(csv);
+            var bomBytes = new byte[] { 0xEF, 0xBB, 0xBF }; // UTF-8 BOM
+            var output = new byte[bomBytes.Length + csvBytes.Length];
+            System.Buffer.BlockCopy(bomBytes, 0, output, 0, bomBytes.Length);
+            System.Buffer.BlockCopy(csvBytes, 0, output, bomBytes.Length, csvBytes.Length);
+            
+            await DownloadFileAsync("export.csv", "text/csv", output);
+        }
+        catch (FullExportUnavailableException)
+        {
+            if (IsCurrent()) _exportError = ExportAllUnavailableLabel;
+        }
+        catch (Exception ex)
+        {
+            if (IsCurrent())
+            {
+                Logger?.LogError(ex, "Export failed for DataGrid");
+                _exportError = ExportErrorMessage;
+            }
+        }
+        finally
+        {
+            _exportBusy = false;
+            if (!_disposed) StateHasChanged();
+        }
+    }
+
+    private async Task<IEnumerable<TItem>> GetExportRowsAsync(DataGridExportScope scope)
+    {
+        if (scope == DataGridExportScope.CurrentPage)
+        {
+            if (VirtualProvider != null)
+                throw new InvalidOperationException(VirtualCurrentPageUnavailableLabel);
+
+            return _pageItems.ToList();
+        }
+
+        if (VirtualProvider is { } virtualProvider)
+        {
+            using var cts = CancellationTokenSource.CreateLinkedTokenSource(
+                _virtualQueryCts?.Token ?? CancellationToken.None);
+            cts.CancelAfter(TimeSpan.FromSeconds(120));
+            var request = BuildVirtualRequest(0, 0, cts.Token);
+            var result = await virtualProvider.GetAllForExportAsync(request).WaitAsync(cts.Token);
+            cts.Token.ThrowIfCancellationRequested();
+            return result?.Items ?? throw new FullExportUnavailableException();
+        }
+
+        if (ServerProvider is { } serverProvider)
+        {
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(120));
+            var request = BuildRequest(cts.Token);
+
+            if (ServerExportAll != null)
+                return await ServerExportAll(request);
+
+            var result = await serverProvider.GetAllForExportAsync(request);
+            return result?.Items ?? throw new FullExportUnavailableException();
+        }
+
+        return QueryInMemory().ToList();
+    }
+
+    private sealed class FullExportUnavailableException() : InvalidOperationException(
+        "Full-dataset export is unavailable. Provide ServerExportAll or implement GetAllForExportAsync.");
+
+    private string BuildCsv(IEnumerable<TItem> rows)
+    {
+        var cols = VisibleColumns.ToList();
+        var sb = new System.Text.StringBuilder();
+        sb.AppendLine(string.Join(",", cols.Select(c => CsvQuote(c.Title))));
+        foreach (var row in rows)
+            sb.AppendLine(string.Join(",", cols.Select(c => CsvQuote(c.Display(row)))));
+        return sb.ToString();
+    }
+
+    private static string CsvQuote(string value)
+    {
+        // Neutralise formula injection (CSV injection / DDE injection)
+        // Check for leading formula triggers: =, +, -, @, \t, \r
+        // Also check if leading whitespace precedes any formula trigger: e.g. "   =cmd"
+        var trimmed = value.TrimStart();
+        var safe = value;
+        if (trimmed.Length > 0 && (trimmed[0] == '=' || trimmed[0] == '+' || trimmed[0] == '-' || trimmed[0] == '@' || trimmed[0] == '\t' || trimmed[0] == '\r'))
+            safe = "'" + value;
+        var escaped = safe.Replace("\"", "\"\"");
+        return $"\"{escaped}\"";
+    }
+
+    /// <summary>
+    /// Builds an XLSX workbook with type-aware cell serialisation.
+    /// Supported cell types: string (inlineStr), integer/decimal (n), boolean (b), date/DateTime/DateOnly (numeric serial with s="1").
+    /// Formula injection is neutralised for string cells.
+    /// </summary>
+    private byte[] BuildXlsx(IEnumerable<TItem> rows)
+    {
+        var cols = VisibleColumns.ToList();
+        var dataRows = rows.ToList();
+
+        var sb = new System.Text.StringBuilder();
+        sb.Append("<sheetData>");
+
+        // Header row — always strings
+        sb.Append("<row r=\"1\">");
+        for (var ci = 0; ci < cols.Count; ci++)
+        {
+            var cellRef = ColLetter(ci + 1) + "1";
+            sb.Append($"<c r=\"{cellRef}\" t=\"inlineStr\"><is><t>{XmlEscape(cols[ci].Title)}</t></is></c>");
+        }
+        sb.Append("</row>");
+
+        // Data rows — type-aware
+        for (var ri = 0; ri < dataRows.Count; ri++)
+        {
+            sb.Append($"<row r=\"{ri + 2}\">");
+            for (var ci = 0; ci < cols.Count; ci++)
+            {
+                var cellRef = ColLetter(ci + 1) + (ri + 2);
+                var raw = cols[ci].Raw(dataRows[ri]);
+                sb.Append(BuildXlsxCell(cellRef, raw));
+            }
+            sb.Append("</row>");
+        }
+        sb.Append("</sheetData>");
+
+        return WriteXlsxPackage(sb.ToString());
+    }
+
+    /// <summary>Serialises a single cell value with correct OOXML type attributes.</summary>
+    private static string BuildXlsxCell(string cellRef, object? raw)
+    {
+        if (raw is null) return $"<c r=\"{cellRef}\"/>";
+
+        return raw switch
+        {
+            bool b => $"<c r=\"{cellRef}\" t=\"b\"><v>{(b ? 1 : 0)}</v></c>",
+
+            byte or sbyte or short or ushort or int or uint or long or ulong
+                => $"<c r=\"{cellRef}\"><v>{raw}</v></c>",
+
+            float f   => $"<c r=\"{cellRef}\"><v>{f.ToString(System.Globalization.CultureInfo.InvariantCulture)}</v></c>",
+            double d  => $"<c r=\"{cellRef}\"><v>{d.ToString(System.Globalization.CultureInfo.InvariantCulture)}</v></c>",
+            decimal m => $"<c r=\"{cellRef}\"><v>{m.ToString(System.Globalization.CultureInfo.InvariantCulture)}</v></c>",
+
+            DateTime dt =>
+                $"<c r=\"{cellRef}\" s=\"2\"><v>{DateTimeToOADate(dt).ToString(System.Globalization.CultureInfo.InvariantCulture)}</v></c>",
+            DateOnly donly =>
+                $"<c r=\"{cellRef}\" s=\"1\"><v>{DateToOADate(donly.ToDateTime(TimeOnly.MinValue)).ToString(System.Globalization.CultureInfo.InvariantCulture)}</v></c>",
+            DateTimeOffset dto =>
+                $"<c r=\"{cellRef}\" s=\"2\"><v>{DateTimeToOADate(dto.UtcDateTime).ToString(System.Globalization.CultureInfo.InvariantCulture)}</v></c>",
+
+            _ => BuildXlsxStringCell(cellRef, raw.ToString() ?? ""),
+        };
+    }
+
+    private static double DateToOADate(DateTime date)
+    {
+        var epoch = new DateTime(1899, 12, 30, 0, 0, 0, DateTimeKind.Unspecified);
+        return (date.Date - epoch).TotalDays;
+    }
+
+    /// <summary>
+    /// Converts DateTime to Excel OADate serial with time component.
+    /// Date-only cells use style 1 (date format: mm-dd-yy).
+    /// DateTime cells use style 2 (datetime format: mm-dd-yy h:mm).
+    /// </summary>
+    private static double DateTimeToOADate(DateTime dateTime)
+    {
+        var epoch = new DateTime(1899, 12, 30, 0, 0, 0, DateTimeKind.Unspecified);
+        return (dateTime - epoch).TotalDays;
+    }
+
+    private static string BuildXlsxStringCell(string cellRef, string value)
+    {
+        var trimmed = value.TrimStart();
+        var safe = value;
+        if (trimmed.Length > 0 && (trimmed[0] == '=' || trimmed[0] == '+' || trimmed[0] == '-' || trimmed[0] == '@' || trimmed[0] == '\t' || trimmed[0] == '\r'))
+            safe = "'" + value;
+        return $"<c r=\"{cellRef}\" t=\"inlineStr\"><is><t>{XmlEscape(safe)}</t></is></c>";
+    }
+
+    private static byte[] WriteXlsxPackage(string sheetDataXml)
+    {
+        const string sheetXml =
+            "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>" +
+            "<worksheet xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\">" +
+            "{0}</worksheet>";
+
+        const string workbookXml =
+            "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>" +
+            "<workbook xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\">" +
+            "<sheets><sheet name=\"Sheet1\" sheetId=\"1\" r:id=\"rId1\"/></sheets></workbook>";
+
+        const string stylesXml =
+            "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>" +
+            "<styleSheet xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\">" +
+            "<numFmts count=\"0\"/>" +
+            "<fonts count=\"1\"><font/></fonts>" +
+            "<fills count=\"2\"><fill><patternFill patternType=\"none\"/></fill><fill><patternFill patternType=\"gray125\"/></fill></fills>" +
+            "<borders count=\"1\"><border/></borders>" +
+            "<cellStyleXfs count=\"1\"><xf numFmtId=\"0\" fontId=\"0\" fillId=\"0\" borderId=\"0\"/></cellStyleXfs>" +
+            "<cellXfs count=\"3\">" +
+            "<xf numFmtId=\"0\" fontId=\"0\" fillId=\"0\" borderId=\"0\" xfId=\"0\"/>" +
+            "<xf numFmtId=\"14\" fontId=\"0\" fillId=\"0\" borderId=\"0\" xfId=\"0\" applyNumberFormat=\"1\"/>" +
+            "<xf numFmtId=\"22\" fontId=\"0\" fillId=\"0\" borderId=\"0\" xfId=\"0\" applyNumberFormat=\"1\"/>" +
+            "</cellXfs>" +
+            "</styleSheet>";
+
+        const string workbookRelsXml =
+            "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>" +
+            "<Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\">" +
+            "<Relationship Id=\"rId1\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet\" Target=\"worksheets/sheet1.xml\"/>" +
+            "<Relationship Id=\"rId2\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles\" Target=\"styles.xml\"/>" +
+            "</Relationships>";
+
+        const string contentTypesXml =
+            "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>" +
+            "<Types xmlns=\"http://schemas.openxmlformats.org/package/2006/content-types\">" +
+            "<Default Extension=\"rels\" ContentType=\"application/vnd.openxmlformats-package.relationships+xml\"/>" +
+            "<Default Extension=\"xml\" ContentType=\"application/xml\"/>" +
+            "<Override PartName=\"/xl/workbook.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml\"/>" +
+            "<Override PartName=\"/xl/worksheets/sheet1.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml\"/>" +
+            "<Override PartName=\"/xl/styles.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml\"/>" +
+            "</Types>";
+
+        using var ms = new System.IO.MemoryStream();
+        using var zip = new System.IO.Compression.ZipArchive(ms, System.IO.Compression.ZipArchiveMode.Create, true);
+
+        static void AddEntry(System.IO.Compression.ZipArchive z, string name, string xml)
+        {
+            var entry = z.CreateEntry(name);
+            using var sw = new System.IO.StreamWriter(entry.Open(), System.Text.Encoding.UTF8);
+            sw.Write(xml);
+        }
+
+        const string rootRels =
+            "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>" +
+            "<Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\">" +
+            "<Relationship Id=\"rId1\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument\" Target=\"xl/workbook.xml\"/>" +
+            "</Relationships>";
+
+        AddEntry(zip, "[Content_Types].xml", contentTypesXml);
+        AddEntry(zip, "_rels/.rels", rootRels);
+        AddEntry(zip, "xl/workbook.xml", workbookXml);
+        AddEntry(zip, "xl/_rels/workbook.xml.rels", workbookRelsXml);
+        AddEntry(zip, "xl/styles.xml", stylesXml);
+        AddEntry(zip, "xl/worksheets/sheet1.xml", string.Format(sheetXml, sheetDataXml));
+
+        zip.Dispose();
+        return ms.ToArray();
+    }
+
+    private static string ColLetter(int col)
+    {
+        var result = "";
+        while (col > 0) { col--; result = (char)('A' + col % 26) + result; col /= 26; }
+        return result;
+    }
+
+    private static string XmlEscape(string s) =>
+        s.Replace("&", "&amp;").Replace("<", "&lt;").Replace(">", "&gt;").Replace("\"", "&quot;");
+
+    private async Task DownloadFileAsync(string filename, string mime, byte[] data)
+    {
+        if (_js == null) return;
+        var base64 = Convert.ToBase64String(data);
+        await _js.InvokeVoidAsync("ChampUI.downloadFile", filename, mime, base64);
+    }
+
+    // ─────────────────── CSS helpers ───────────────────
+    private static string AlignClass(UiColumn<TItem> c) => c.Align switch { UiAlign.Center => "is-center", UiAlign.End => "is-end", _ => "" };
+    private static string HeaderClass(UiColumn<TItem> c) => $"{AlignClass(c)} {(c.HideOnMobile ? "ui-hide-mobile" : "")}".Trim();
+    private static string CellClass(UiColumn<TItem> c) => HeaderClass(c);
+    private static string? ColStyle(UiColumn<TItem> c)
+    {
+        var parts = new List<string>();
+        if (c.Width != null) parts.Add($"width:{c.Width}");
+        if (c.MinWidth != null) parts.Add($"min-width:{c.MinWidth}");
+        return parts.Count > 0 ? string.Join(";", parts) : null;
+    }
+
+    // ─────────────────── value comparison (for in-memory sort) ───────────────────
+    private static int CompareValues(object? a, object? b)
+    {
+        if (a is null && b is null) return 0;
+        if (a is null) return -1;
+        if (b is null) return 1;
+        if (a is string sa && b is string sb) return string.Compare(sa, sb, StringComparison.CurrentCultureIgnoreCase);
+        if (a is IComparable ca && a.GetType() == b.GetType()) return ca.CompareTo(b);
+        return string.Compare(a.ToString(), b.ToString(), StringComparison.CurrentCultureIgnoreCase);
+    }
+
+    // ─────────────────── B-03: Virtualization Configuration Validation ───────────────────
+    
+    private void ValidateVirtualizationParameters()
+    {
+        // Validate VirtualRowHeight
+        if (float.IsNaN(VirtualRowHeight) || float.IsInfinity(VirtualRowHeight) || VirtualRowHeight <= 0)
+        {
+            throw new InvalidOperationException(
+                $"VirtualRowHeight must be a positive finite number. Current value: {VirtualRowHeight}. " +
+                "Valid range: > 0 (typically 32-80px).");
+        }
+
+        // Validate VirtualOverscan
+        if (VirtualOverscan < 0)
+        {
+            throw new InvalidOperationException(
+                $"VirtualOverscan must be >= 0. Current value: {VirtualOverscan}. " +
+                "Valid range: 0-20 (higher values improve scroll smoothness but increase DOM size).");
+        }
+
+        // Validate VirtualViewportHeight syntax if provided
+        if (!string.IsNullOrWhiteSpace(VirtualViewportHeight))
+        {
+            var height = VirtualViewportHeight.Trim();
+            var isValid = height.EndsWith("px", StringComparison.OrdinalIgnoreCase) ||
+                          height.EndsWith("vh", StringComparison.OrdinalIgnoreCase) ||
+                          height.EndsWith("rem", StringComparison.OrdinalIgnoreCase) ||
+                          height.EndsWith("em", StringComparison.OrdinalIgnoreCase) ||
+                          height.EndsWith("%", StringComparison.Ordinal);
+            
+            if (!isValid)
+            {
+                throw new InvalidOperationException(
+                    $"VirtualViewportHeight must be a valid CSS height value (e.g., '400px', '50vh', '20rem'). " +
+                    $"Current value: '{VirtualViewportHeight}'.");
+            }
+        }
+    }
+
+    public void Dispose()
+    {
+        _disposed = true;
+        
+        // Cancel and dispose legacy CTS
+        lock (_ctsLock)
+        {
+            try { _cts.Cancel(); } catch (ObjectDisposedException) { }
+            _cts.Dispose();
+        }
+        
+        // Cancel and dispose virtual query CTS
+        if (_virtualQueryCts != null)
+        {
+            try { _virtualQueryCts.Cancel(); } catch (ObjectDisposedException) { }
+            _virtualQueryCts.Dispose();
+            _virtualQueryCts = null;
+        }
+    }
+}

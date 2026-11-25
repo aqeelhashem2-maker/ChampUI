@@ -1,0 +1,31 @@
+<span class="ui-avatar ui-avatar--@Size.Css() @Class" role="img" aria-label="@Name" title="@Name">
+    @if (!string.IsNullOrWhiteSpace(ImageUrl))
+    {
+        <img src="@ImageUrl" alt="" loading="lazy" />
+    }
+    else
+    {
+        @Initials
+    }
+    @if (!string.IsNullOrEmpty(Status)) { <span class="ui-avatar__status ui-avatar__status--@Status"></span> }
+</span>
+
+@code {
+    [Parameter, EditorRequired] public string Name { get; set; } = "";
+    [Parameter] public string? ImageUrl { get; set; }
+    [Parameter] public UiSize Size { get; set; } = UiSize.Medium;
+    /// <summary>Optional presence indicator: "online", "away" or any other value for a neutral dot.</summary>
+    [Parameter] public string? Status { get; set; }
+    [Parameter] public string? Class { get; set; }
+
+    private string Initials
+    {
+        get
+        {
+            var parts = (Name ?? "").Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            if (parts.Length == 0) return "?";
+            var first = char.ToUpperInvariant(parts[0][0]).ToString();
+            return parts.Length == 1 ? first : first + char.ToUpperInvariant(parts[^1][0]);
+        }
+    }
+}

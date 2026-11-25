@@ -1,0 +1,117 @@
+@page "/interactive-smoke"
+@rendermode InteractiveServer
+
+<PageTitle>Interactive Smoke Test</PageTitle>
+
+<div class="smoke-test-container" style="padding: 40px; max-width: 600px; margin: 0 auto;">
+    <h1>Blazor Interactive Server Smoke Test</h1>
+    
+    <div class="status-panel" style="background: var(--ui-surface); padding: 20px; border-radius: 8px; margin: 20px 0;">
+        <h2>Circuit Status</h2>
+        <p id="circuit-status" data-testid="circuit-status">@_circuitStatus</p>
+        <p id="render-count" data-testid="render-count">Render Count: @_renderCount</p>
+        <p id="interactive-ready" data-testid="interactive-ready">Interactive Ready: @_isInteractiveReady</p>
+    </div>
+
+    <div class="counter-panel" style="background: var(--ui-surface); padding: 20px; border-radius: 8px; margin: 20px 0;">
+        <h2>Interactive Counter</h2>
+        <p id="counter-value" data-testid="counter-value" style="font-size: 48px; font-weight: bold; color: var(--ui-accent);">@_counter</p>
+        <button id="increment-btn" 
+                data-testid="increment-btn"
+                @onclick="IncrementCounter" 
+                class="ui-btn ui-btn--primary"
+                style="font-size: 18px; padding: 12px 24px;">
+            Click Me (+1)
+        </button>
+        <button id="reset-btn"
+                data-testid="reset-btn"
+                @onclick="ResetCounter"
+                class="ui-btn ui-btn--secondary"
+                style="font-size: 18px; padding: 12px 24px; margin-left: 10px;">
+            Reset
+        </button>
+    </div>
+
+    <div class="async-panel" style="background: var(--ui-surface); padding: 20px; border-radius: 8px; margin: 20px 0;">
+        <h2>Async Operation Test</h2>
+        <p id="async-status" data-testid="async-status">Status: @_asyncStatus</p>
+        <p id="async-result" data-testid="async-result">Result: @_asyncResult</p>
+        <button id="async-btn"
+                data-testid="async-btn"
+                @onclick="RunAsyncOperation"
+                disabled="@_asyncRunning"
+                class="ui-btn ui-btn--primary">
+            @(_asyncRunning ? "Running..." : "Start Async Task")
+        </button>
+    </div>
+
+    <div class="diagnostic-panel" style="background: var(--ui-surface-elevated); padding: 20px; border-radius: 8px; margin: 20px 0; font-family: monospace; font-size: 12px;">
+        <h3>Diagnostic Info</h3>
+        <p data-testid="timestamp">Last Update: @_lastUpdate</p>
+        <p data-testid="server-time">Server Time: @DateTime.Now.ToString("HH:mm:ss.fff")</p>
+    </div>
+</div>
+
+@code {
+    private int _counter = 0;
+    private int _renderCount = 0;
+    private bool _isInteractiveReady = false;
+    private string _circuitStatus = "Initializing...";
+    private string _asyncStatus = "Ready";
+    private string _asyncResult = "N/A";
+    private bool _asyncRunning = false;
+    private string _lastUpdate = "Never";
+
+    protected override void OnInitialized()
+    {
+        _circuitStatus = "OnInitialized called";
+        _renderCount++;
+        base.OnInitialized();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            // On first render after interactive connection established
+            _isInteractiveReady = true;
+            _circuitStatus = "Interactive circuit established";
+            _lastUpdate = DateTime.Now.ToString("HH:mm:ss.fff");
+            StateHasChanged();
+        }
+        await base.OnAfterRenderAsync(firstRender);
+    }
+
+    private void IncrementCounter()
+    {
+        _counter++;
+        _lastUpdate = DateTime.Now.ToString("HH:mm:ss.fff");
+        _circuitStatus = $"Counter incremented to {_counter}";
+        _renderCount++;
+    }
+
+    private void ResetCounter()
+    {
+        _counter = 0;
+        _lastUpdate = DateTime.Now.ToString("HH:mm:ss.fff");
+        _circuitStatus = "Counter reset";
+        _renderCount++;
+    }
+
+    private async Task RunAsyncOperation()
+    {
+        _asyncRunning = true;
+        _asyncStatus = "Running...";
+        _lastUpdate = DateTime.Now.ToString("HH:mm:ss.fff");
+        StateHasChanged();
+
+        await Task.Delay(1000); // Simulate async work
+
+        _asyncResult = $"Completed at {DateTime.Now:HH:mm:ss.fff}";
+        _asyncStatus = "Completed";
+        _asyncRunning = false;
+        _lastUpdate = DateTime.Now.ToString("HH:mm:ss.fff");
+        _circuitStatus = "Async operation completed successfully";
+        _renderCount++;
+    }
+}

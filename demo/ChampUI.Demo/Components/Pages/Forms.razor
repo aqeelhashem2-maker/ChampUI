@@ -1,0 +1,31 @@
+@page "/forms"
+
+<PageTitle>Forms · ChampUI Showcase</PageTitle>
+<UiBreadcrumb Items="_breadcrumbs" />
+<UiPageHeader Title="Forms" Subtitle="Edit a fictional project." />
+<div class="showcase-grid">
+    <UiCard Title="Project details" BodyClass="showcase-card-body">
+        <UiTextField Label="Project name" @bind-Value="_name" />
+        <UiTextArea Label="Notes" Rows="3" MaxLength="200" ShowCharCount="true" @bind-Value="_notes" />
+        <UiNumberField Label="Estimated hours" Min="1" Max="200" @bind-Value="_hours" />
+        <UiSelect TValue="string" Label="Workspace" Options="_workspaces" @bind-Value="_workspace" />
+    </UiCard>
+    <UiCard Title="Preferences" BodyClass="showcase-card-body">
+        <UiFormField Label="Schedule"><UiDatePicker Label="Due date" @bind-Value="_due" /></UiFormField>
+        <UiCheckbox Label="Include in reports" @bind-Checked="_included" />
+        <UiSwitch Label="Notify on changes" @bind-Checked="_notifications" />
+        <p>@_name · @_workspace · @_hours hours</p>
+    </UiCard>
+</div>
+
+@code {
+    private readonly BreadcrumbItem[] _breadcrumbs = [new("Foundations", "/"), new("Forms")];
+    private readonly SelectOption<string>[] _workspaces = [new("Studio", "Studio"), new("Workshop", "Workshop")];
+    private string? _name = "Studio catalog";
+    private string? _notes;
+    private double? _hours = 12;
+    private string _workspace = "Studio";
+    private DateOnly? _due = new DateOnly(2027, 1, 15);
+    private bool _included = true;
+    private bool _notifications;
+}

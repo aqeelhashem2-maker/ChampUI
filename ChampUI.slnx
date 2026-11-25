@@ -1,0 +1,12 @@
+<Solution>
+  <Folder Name="/demo/">
+    <Project Path="demo/ChampUI.Demo/ChampUI.Demo.csproj" />
+  </Folder>
+  <Folder Name="/src/">
+    <Project Path="src/ChampUI/ChampUI.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/ChampUI.Tests/ChampUI.Tests.csproj" />
+    <Project Path="tests/ChampUI.BrowserTests/ChampUI.BrowserTests.csproj" />
+  </Folder>
+</Solution>

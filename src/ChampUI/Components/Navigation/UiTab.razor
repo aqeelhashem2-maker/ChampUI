@@ -1,0 +1,30 @@
+@implements IDisposable
+
+@if (Parent?.IsActive(this) == true)
+{
+    <div class="ui-tabpanel" role="tabpanel" id="@PanelId" aria-labelledby="@TabId">
+        @ChildContent
+    </div>
+}
+
+@code {
+    internal string TabId { get; } = "tab-" + Guid.NewGuid().ToString("N")[..8];
+    internal string PanelId => TabId + "-panel";
+
+    [CascadingParameter] private UiTabs? Parent { get; set; }
+
+    [Parameter, EditorRequired] public string Title { get; set; } = "";
+    [Parameter] public string? Icon { get; set; }
+    [Parameter] public string? Badge { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    protected override void OnInitialized()
+    {
+        if (Parent is null) throw new InvalidOperationException("UiTab must be placed inside a UiTabs component.");
+        Parent.Register(this);
+    }
+
+    internal void Refresh() => InvokeAsync(StateHasChanged);
+
+    public void Dispose() => Parent?.Unregister(this);
+}
