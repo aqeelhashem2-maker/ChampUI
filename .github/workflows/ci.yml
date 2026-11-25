@@ -11,10 +11,13 @@ jobs:
   validation:
     runs-on: ubuntu-latest
     timeout-minutes: 25
-    env:
-      CHAMPUI_EVIDENCE_DIR: ${{ runner.temp }}/champui-evidence
     steps:
       - uses: actions/checkout@v4
+      - name: Initialize regression evidence directory
+        shell: bash
+        run: |
+          mkdir -p "$RUNNER_TEMP/champui-evidence"
+          printf 'CHAMPUI_EVIDENCE_DIR=%s\n' "$RUNNER_TEMP/champui-evidence" >> "$GITHUB_ENV"
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.0.x'
