@@ -1,24 +1,38 @@
-@if (Visible)
+@using Microsoft.JSInterop
+@inject IJSRuntime JS
+
+@if (Visible || _browserOpen)
 {
-    <div class="ui-dialog-backdrop" @onclick="CloseAsync">
-        <div class="ui-dialog ui-dialog--@Size.Css() @Class" role="dialog" aria-modal="true" aria-labelledby="@_titleId" tabindex="-1"
-             @onclick:stopPropagation="true" @onkeydown="OnKeyDown">
-            <div class="ui-dialog__header">
-                <h2 class="ui-dialog__title" id="@_titleId">@Title</h2>
-                <UiIconButton Icon="x" Label="@CloseLabel" Small="true" OnClick="CloseClicked" />
-            </div>
-            <div class="ui-dialog__body">@ChildContent</div>
-            @if (Footer != null) { <div class="ui-dialog__footer">@Footer</div> }
+    <dialog @ref="_dialog" class="ui-dialog ui-dialog--@Size.Css() @Class" role="dialog" aria-modal="true"
+            aria-labelledby="@_titleId" aria-describedby="@(HasDescription ? DescriptionId : null)"
+            @onkeydown="OnKeyDown" @onkeydown:stopPropagation="true">
+        <div class="ui-dialog__header">
+            <h2 class="ui-dialog__title" id="@_titleId">@Title</h2>
+            <UiIconButton Icon="x" Label="@CloseLabel" Small="true" OnClick="CloseClicked" data-ui-dialog-close="true" />
         </div>
-    </div>
+        <div class="ui-dialog__body">
+            @if (HasDescription)
+            {
+                <p id="@DescriptionId">@Description</p>
+            }
+            @ChildContent
+        </div>
+        @if (Footer != null) { <div class="ui-dialog__footer">@Footer</div> }
+    </dialog>
 }
 
 @code {
     private readonly string _titleId = "dlg-" + Guid.NewGuid().ToString("N")[..8];
+    private string DescriptionId => $"{_titleId}-description";
+    private ElementReference _dialog;
+    private bool _browserOpen;
+    private bool HasDescription => !string.IsNullOrWhiteSpace(Description);
 
     [Parameter] public bool Visible { get; set; }
     [Parameter] public EventCallback<bool> VisibleChanged { get; set; }
     [Parameter, EditorRequired] public string Title { get; set; } = "";
+    /// <summary>Optional short, plain-text description announced with the dialog title.</summary>
+    [Parameter] public string? Description { get; set; }
     [Parameter] public UiSize Size { get; set; } = UiSize.Medium;
     [Parameter] public string CloseLabel { get; set; } = "Close";
     [Parameter] public string? Class { get; set; }
@@ -28,13 +42,38 @@
     [Parameter] public RenderFragment? Footer { get; set; }
     [Parameter] public EventCallback OnClosed { get; set; }
 
+    protected override Task OnAfterRenderAsync(bool firstRender) => SyncBrowserAsync();
+
+    private async Task SyncBrowserAsync()
+    {
+        if (Visible == _browserOpen)
+            return;
+
+        var opening = _browserOpen = Visible;
+        try
+        {
+            await JS.InvokeVoidAsync(opening ? "ChampUI.openDialog" : "ChampUI.closeDialog", _dialog);
+        }
+        catch (JSDisconnectedException)
+        {
+            // Client-side cleanup runs when the element is removed.
+        }
+
+        if (!opening && !Visible)
+            StateHasChanged();
+    }
+
     public async Task CloseAsync()
     {
+        if (!Visible)
+            return;
+
         Visible = false;
+        await SyncBrowserAsync();
         await VisibleChanged.InvokeAsync(false);
         await OnClosed.InvokeAsync();
     }
 
     private Task CloseClicked(MouseEventArgs _) => CloseAsync();
-    private async Task OnKeyDown(KeyboardEventArgs e) { if (e.Key == "Escape") await CloseAsync(); }
+    private Task OnKeyDown(KeyboardEventArgs e) => e.Key == "Escape" && !e.Repeat ? CloseAsync() : Task.CompletedTask;
 }
