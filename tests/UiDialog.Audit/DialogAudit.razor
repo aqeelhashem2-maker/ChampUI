@@ -1,0 +1,98 @@
+@page "/dialog-audit"
+@inject UiThemeState Theme
+
+<h1>Dialog audit</h1>
+<nav><a href="/orders" id="leave">Orders fixture</a></nav>
+<button id="background" @onclick="() => _clicks++">Background action</button>
+<output id="background-count">@_clicks</output>
+<button id="launch" @onclick="Open">Open modal</button>
+<button id="after">After modal</button>
+<button id="theme" @onclick="Theme.Toggle">Change theme</button>
+<UiTextField Label="Standalone input" @bind-Value="_text" />
+<output id="server-text">@_text</output>
+<div @onclick="() => _ancestorClicks++">
+@if (_mounted)
+{
+<UiDialog Title="Audit modal" Description="Audit dialog description." Visible="_open" VisibleChanged="VisibilityChanged" OnClosed="Closed">
+    <button id="disabled" disabled>Disabled</button>
+    <button id="nested-open" @onclick="() => _nested = true">Open nested</button>
+    <button id="dispose" @onclick="() => _mounted = false">Dispose modal</button>
+    <button id="reopen" @onclick="() => _reopen = true">Reopen after close</button>
+    <button id="final" @onclick="() => _open = false">Parent closes</button>
+    <UiDialog Title="Nested modal" @bind-Visible="_nested">
+        <p>No additional controls.</p>
+    </UiDialog>
+</UiDialog>
+}
+</div>
+<output id="ancestor-clicks">@_ancestorClicks</output>
+<button id="no-controls" @onclick="() => _empty = true">Open empty fixture</button>
+<UiDialog Title="Empty modal" Class="no-tab-controls" @bind-Visible="_empty">
+    <p>Plain text only.</p>
+</UiDialog>
+<style>.no-tab-controls button { display: none; }</style>
+<output id="closed-count">@_closed</output>
+<output id="callback-sequence">@string.Join(",", _callbacks)</output>
+
+<button id="open-dynamic" @onclick="() => _dynamicOpen = true">Open dynamic</button>
+<UiDialog Title="Dynamic modal" @bind-Visible="_dynamicOpen">
+    <button id="insert" @onclick="() => _extra = true">Insert control</button>
+    @if (_extra) { <button id="remove" @onclick="() => _extra = false">Remove this control</button> }
+</UiDialog>
+
+@if (!_fallbackRemoved)
+{
+    <button id="open-fallback" disabled="@_fallbackDisabled" @onclick="() => _fallbackOpen = true">Open fallback</button>
+}
+<button id="reset-fallback" @onclick="ResetFallback">Reset launcher</button>
+<UiDialog Title="Fallback modal" @bind-Visible="_fallbackOpen">
+    <button id="disable-launcher" @onclick="() => _fallbackDisabled = true">Disable launcher</button>
+    <button id="remove-launcher" @onclick="() => _fallbackRemoved = true">Remove launcher</button>
+</UiDialog>
+
+@code {
+    private bool _open;
+    private bool _reopen;
+    private bool _dynamicOpen;
+    private bool _extra;
+    private bool _fallbackOpen;
+    private bool _fallbackRemoved;
+    private bool _fallbackDisabled;
+    private readonly List<string> _callbacks = [];
+
+    private void VisibilityChanged(bool visible)
+    {
+        _open = visible;
+        _callbacks.Add(visible ? "visible" : "hidden");
+    }
+
+    private void Closed()
+    {
+        _closed++;
+        _callbacks.Add("closed");
+        if (_reopen)
+        {
+            _reopen = false;
+            _open = true;
+        }
+    }
+
+    private void ResetFallback()
+    {
+        _fallbackRemoved = false;
+        _fallbackDisabled = false;
+    }
+    private bool _mounted = true;
+    private bool _empty;
+
+    private void Open()
+    {
+        _mounted = true;
+        _open = true;
+    }
+    private bool _nested;
+    private int _closed;
+    private int _clicks;
+    private int _ancestorClicks;
+    private string? _text;
+}

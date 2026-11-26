@@ -1,0 +1,14 @@
+@page "/text-field-audit"
+
+<UiTextField Label="Audit input" @bind-Value="_value" OnEnter="CaptureEnter" />
+<button type="button" @onclick='() => _value = "Server replacement"'>Replace externally</button>
+<button type="button" @onclick="() => _value = null">Reset</button>
+<output id="model">@_value</output>
+<output id="entered">@_entered</output>
+
+@code {
+    private string? _value = "Initial value";
+    private string? _entered;
+
+    private void CaptureEnter(string? value) => _entered = value;
+}

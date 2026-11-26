@@ -2,9 +2,9 @@
     @if (!string.IsNullOrEmpty(Label)) { <label class="ui-field__label" for="@_id">@Label</label> }
     <div class="ui-input @(string.IsNullOrEmpty(Error) ? null : "ui-input--invalid") @(Disabled ? "ui-input--disabled" : null) @(Small ? "ui-input--sm" : null)">
         @if (!string.IsNullOrEmpty(Icon)) { <UiIcon Name="@Icon" Size="16" /> }
-        <input id="@_id" type="@Type" value="@Value" placeholder="@Placeholder" disabled="@Disabled" autocomplete="@AutoComplete"
+        <input id="@_id" type="@Type" @bind:get="Value" @bind:set="SetValueAsync" @bind:event="oninput" placeholder="@Placeholder" disabled="@Disabled" autocomplete="@AutoComplete"
                aria-invalid="@(string.IsNullOrEmpty(Error) ? null : "true")" aria-describedby="@(DescribedBy)"
-               @oninput="OnInput" @onkeydown="OnKeyDown" @attributes="Attributes" />
+               @onkeydown="OnKeyDown" @attributes="Attributes" />
     </div>
     @if (!string.IsNullOrEmpty(Error)) { <span class="ui-field__error" id="@_id-msg">@Error</span> }
     else if (!string.IsNullOrEmpty(HelpText)) { <span class="ui-field__help" id="@_id-msg">@HelpText</span> }
@@ -31,9 +31,9 @@
 
     private string? DescribedBy => string.IsNullOrEmpty(Error) && string.IsNullOrEmpty(HelpText) ? null : _id + "-msg";
 
-    private async Task OnInput(ChangeEventArgs e)
+    private async Task SetValueAsync(string? value)
     {
-        Value = e.Value?.ToString();
+        Value = value;
         await ValueChanged.InvokeAsync(Value);
     }
 
