@@ -10,6 +10,7 @@
 <button id="theme" @onclick="Theme.Toggle">Change theme</button>
 <UiTextField Label="Standalone input" @bind-Value="_text" />
 <output id="server-text">@_text</output>
+<div @onclick="() => _ancestorClicks++">
 @if (_mounted)
 {
 <UiDialog Title="Audit modal" Description="Audit dialog description." Visible="_open" VisibleChanged="VisibilityChanged" OnClosed="Closed">
@@ -23,6 +24,8 @@
     </UiDialog>
 </UiDialog>
 }
+</div>
+<output id="ancestor-clicks">@_ancestorClicks</output>
 <button id="no-controls" @onclick="() => _empty = true">Open empty fixture</button>
 <UiDialog Title="Empty modal" Class="no-tab-controls" @bind-Visible="_empty">
     <p>Plain text only.</p>
@@ -90,5 +93,6 @@
     private bool _nested;
     private int _closed;
     private int _clicks;
+    private int _ancestorClicks;
     private string? _text;
 }

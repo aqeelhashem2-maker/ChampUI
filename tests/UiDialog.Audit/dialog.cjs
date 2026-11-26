@@ -91,6 +91,25 @@ test('mouse close, backdrop, repeated cycles and parent-controlled close', async
     });
 });
 
+test('clicks inside the modal and on its backdrop do not invoke Blazor ancestor actions', async () => {
+    await run('ancestor-click', async page => {
+        for (const dismiss of ['close button', 'backdrop']) {
+            await page.locator('#launch').click();
+            const dialog = modal(page);
+            await dialog.waitFor();
+            await dialog.getByText('Audit dialog description.').click();
+            if (dismiss === 'close button') {
+                await dialog.getByRole('button', { name: 'Close', exact: true }).click();
+            } else {
+                await page.mouse.click(8, 8);
+            }
+            await dialog.waitFor({ state: 'hidden' });
+            await active(page, page.locator('#launch'));
+            assert.equal(await page.locator('#ancestor-clicks').textContent(), '0');
+        }
+    });
+});
+
 test('dark RTL nested modal restores the inner opener, top-layer disposal restores background', async () => {
     await run('nested-disposal', async page => {
         await page.getByRole('button', { name: 'Dark mode' }).click();
