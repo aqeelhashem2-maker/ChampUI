@@ -1,6 +1,6 @@
 # ChampUI Dashboard Starter
 
-A .NET 10 Blazor Interactive Server dashboard from Sadeem Systems. It includes a fictional operations overview, customers and orders grids, analytics, and session-scoped workspace preferences. The application uses ChampUI 0.3.1 from NuGet.
+A .NET 10 Blazor Interactive Server dashboard from Sadeem Systems. It includes a fictional operations overview, customers and orders grids, analytics, and session-scoped workspace preferences. The application requires ChampUI 0.3.3. While that library version is available only as a local candidate, use the local feed instructions before building.
 
 ## Get started
 
@@ -8,18 +8,23 @@ Install the [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0) and
 
 ```sh
 dotnet pack templates/ChampUI.Templates.Packaging -c Release -o .local/champui-templates
-dotnet new install .local/champui-templates/SadeemSystems.ChampUI.Templates.0.1.2.nupkg
+dotnet new install .local/champui-templates/SadeemSystems.ChampUI.Templates.0.1.3.nupkg
 dotnet new list champui-dashboard
 dotnet new champui-dashboard -n MyDashboard
 cd MyDashboard
+```
+
+Once ChampUI 0.3.3 is available on your configured NuGet source, run:
+
+```sh
 dotnet restore
 dotnet build --no-restore
 dotnet run
 ```
 
-Open the localhost address printed by `dotnet run`. The template package version (0.1.2) is independent of the component dependency (0.3.1).
+Open the localhost address printed by `dotnet run`. The template package version (0.1.3) is independent of the component dependency (0.3.3).
 
-To restore offline, put the approved `ChampUI.0.3.1.nupkg` and any SDK-required packages in a directory outside the generated project. Some .NET 10 SDKs restore `Microsoft.AspNetCore.App.Internal.Assets` for the Blazor script. Use the version requested by your SDK. With the offline feed prepared, run:
+To restore offline, put the approved `ChampUI.0.3.3.nupkg` and any SDK-required packages in a directory outside the generated project. Some .NET 10 SDKs restore `Microsoft.AspNetCore.App.Internal.Assets` for the Blazor script. Use the version requested by your SDK. With the offline feed prepared, run:
 
 ```sh
 dotnet restore --source /absolute/path/to/feed --packages /absolute/path/to/isolated-cache

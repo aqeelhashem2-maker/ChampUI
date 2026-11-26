@@ -36,18 +36,18 @@ export DOTNET_ADD_GLOBAL_TOOLS_TO_PATH=false
 export DOTNET_CLI_WORKLOAD_UPDATE_NOTIFY_DISABLE=true
 export NUGET_HTTP_CACHE_PATH="$work/nuget-http"
 export Logging__LogLevel__Microsoft_AspNetCore_DataProtection=Error
-approved="${CHAMPUI_APPROVED_PACKAGE:-$root/release/v0.3.1/assets/ChampUI.0.3.1.nupkg}"
+approved="${CHAMPUI_APPROVED_PACKAGE:?Set CHAMPUI_APPROVED_PACKAGE to the ChampUI 0.3.3 artifact}"
 mkdir "$work/feed" "$work/generated"
 python3 - "$approved" <<'PY'
 from hashlib import sha256
 from pathlib import Path
 import sys
 payload = Path(sys.argv[1]).read_bytes()
-assert len(payload) == 110625 and sha256(payload).hexdigest() == (
-    "fc652da514741ce2d0bb6c6f681d2d359c91e06cba6d06a6251a59196ccaab5e"
+assert sha256(payload).hexdigest() == (
+    "ab3f62986377214eeba0243261617497094430cf0cbb27b0548d3f9e2dafe4ca"
 ), "Unexpected approved package bytes"
 PY
-cp "$approved" "$work/feed/ChampUI.0.3.1.nupkg"
+cp "$approved" "$work/feed/ChampUI.0.3.3.nupkg"
 
 cat > "$work/public.config" <<XML
 <configuration>
@@ -79,7 +79,7 @@ if [[ -n "${CHAMPUI_TEMPLATE_PACKAGE:-}" ]]; then
 else
     dotnet pack "$root/templates/ChampUI.Templates.Packaging" -c Release -o "$(dirname "$evidence")" \
         -p:RestoreConfigFile="$work/public.config" --disable-build-servers -warnaserror | tee "$evidence/pack.log"
-    template="$(dirname "$evidence")/SadeemSystems.ChampUI.Templates.0.1.2.nupkg"
+    template="$(dirname "$evidence")/SadeemSystems.ChampUI.Templates.0.1.3.nupkg"
 fi
 python3 - "$template" <<'PY'
 from pathlib import PurePosixPath
@@ -103,6 +103,10 @@ dotnet new champui-dashboard -n Northwind.Ops-Portal --no-update-check --debug:c
 for project in MyDashboard Northwind.Ops-Portal; do
     cp "$test_dir/fixtures/FocusAudit.razor" "$project/Components/Pages/"
     python3 "$test_dir/guide_examples.py" "$project"
+    if [[ -n "${CHAMPUI_INPUT_AUDIT:-}" ]]; then
+        cp "$CHAMPUI_INPUT_AUDIT/TextFieldAudit.razor" "$project/Components/Pages/"
+        python3 "$CHAMPUI_INPUT_AUDIT/add-orders-probe.py" "$project/Components/Pages/Orders.razor"
+    fi
 done
 mkdir -p Northwind.Ops-Portal/wwwroot/images
 cp "$test_dir/fixtures/logo.svg" Northwind.Ops-Portal/wwwroot/images/audit-logo.svg
@@ -110,12 +114,20 @@ cp "$test_dir/fixtures/logo.svg" Northwind.Ops-Portal/wwwroot/images/audit-logo.
 dotnet restore MyDashboard --configfile "$work/local.config" --packages "$work/local-packages" --no-http-cache -warnaserror \
     | tee "$evidence/restore-local.log"
 python3 "$test_dir/validate.py" project MyDashboard "$work/local-packages" "$work/feed" | tee -a "$evidence/restore-local.log"
-cmp "$approved" "$work/local-packages/champui/0.3.1/champui.0.3.1.nupkg"
+cmp "$approved" "$work/local-packages/champui/0.3.3/champui.0.3.3.nupkg"
 
+if [[ "${CHAMPUI_LOCAL_ONLY:-0}" == 1 ]]; then
+    dotnet restore Northwind.Ops-Portal --configfile "$work/local.config" --packages "$work/production-packages" --no-http-cache -warnaserror \
+        | tee "$evidence/restore-production-local.log"
+    python3 "$test_dir/validate.py" project Northwind.Ops-Portal "$work/production-packages" "$work/feed" \
+        | tee -a "$evidence/restore-production-local.log"
+    cmp "$approved" "$work/production-packages/champui/0.3.3/champui.0.3.3.nupkg"
+    echo "Public ChampUI 0.3.3 restore and signature: not run in local-only mode." | tee "$evidence/public-status.log"
+else
 dotnet restore Northwind.Ops-Portal --configfile "$work/public.config" --packages "$work/public-packages" --no-http-cache -warnaserror \
     | tee "$evidence/restore-public.log"
 python3 "$test_dir/validate.py" project Northwind.Ops-Portal "$work/public-packages" "$public_source" | tee -a "$evidence/restore-public.log"
-public_package="$work/public-packages/champui/0.3.1/champui.0.3.1.nupkg"
+public_package="$work/public-packages/champui/0.3.3/champui.0.3.3.nupkg"
 dotnet nuget verify "$public_package" --all | tee "$evidence/public-signature.log"
 python3 - "$approved" "$public_package" <<'PY' | tee "$evidence/public-content.log"
 from hashlib import sha256
@@ -129,6 +141,7 @@ with ZipFile(original) as approved, ZipFile(distributed) as public:
     print(f"{len(approved.namelist())} substantive entries match the approved package.")
 print(f"Public SHA-256 {sha256(distributed.read_bytes()).hexdigest()}")
 PY
+fi
 
 dotnet build MyDashboard -c Release --no-restore --disable-build-servers -warnaserror | tee "$evidence/build.log"
 dotnet publish Northwind.Ops-Portal -c Release --no-restore --disable-build-servers -warnaserror -o "$work/publish" | tee "$evidence/publish.log"
@@ -163,6 +176,9 @@ else:
 PY
 )" || { stop_server; return 1; }
     node "$test_dir/${CHAMPUI_BROWSER_FILE:-browser.cjs}" "$url" "$output" 2>&1 | tee "$output/browser.log" || status=$?
+    if [[ "$status" == 0 && -z "${CHAMPUI_BROWSER_FILE:-}" && -n "${CHAMPUI_INPUT_AUDIT:-}" ]]; then
+        node "$CHAMPUI_INPUT_AUDIT/input.cjs" "$url" 2>&1 | tee "$output/input.log" || status=$?
+    fi
     if [[ "$status" == 0 && -z "${CHAMPUI_BROWSER_FILE:-}" ]]; then
         python3 "$test_dir/validate.py" downloads "$output" | tee "$output/downloads.log" || status=$?
     fi

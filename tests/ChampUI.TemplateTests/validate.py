@@ -12,7 +12,7 @@ def verify_project(directory, packages, source):
     assert project.findtext(".//TargetFramework") == "net10.0"
     assert project.findall(".//ProjectReference") == []
     assert [ref.attrib for ref in project.findall(".//PackageReference")] == [
-        {"Include": "ChampUI", "Version": "0.3.1"}
+        {"Include": "ChampUI", "Version": "0.3.3"}
     ]
     sources = [*directory.rglob("*.razor"), *directory.rglob("*.cs"), *directory.glob("*.csproj")]
     for file in sources:
@@ -22,13 +22,13 @@ def verify_project(directory, packages, source):
     assets = json.loads((directory / "obj/project.assets.json").read_text())
     for identifier, library in assets["libraries"].items():
         assert library["type"] == "package", identifier
-        assert identifier == "ChampUI/0.3.1" or identifier.startswith(
+        assert identifier == "ChampUI/0.3.3" or identifier.startswith(
             "Microsoft.AspNetCore.App.Internal.Assets/10.0."
         ), identifier
-    assert "ChampUI/0.3.1" in assets["libraries"]
-    metadata = json.loads((packages / "champui/0.3.1/.nupkg.metadata").read_text())
+    assert "ChampUI/0.3.3" in assets["libraries"]
+    metadata = json.loads((packages / "champui/0.3.3/.nupkg.metadata").read_text())
     assert metadata["source"] == source, metadata["source"]
-    print(f"{directory.name}: exact ChampUI 0.3.1 package and source verified ({source})")
+    print(f"{directory.name}: exact ChampUI 0.3.3 package and source verified ({source})")
 
 
 def verify_downloads(directory):
