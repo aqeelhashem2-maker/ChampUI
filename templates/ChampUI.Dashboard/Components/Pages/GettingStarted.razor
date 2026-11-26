@@ -1,0 +1,146 @@
+@page "/getting-started"
+@inject DashboardOptions Identity
+@inject NavigationManager Navigation
+
+@if (Identity.ShowDeveloperGuide)
+{
+    <DashboardTitle Title='@P.Text("Getting Started", "البدء")' />
+    <div class="dashboard-heading">
+        <UiPageHeader Title='@P.Text("Getting Started", "البدء")'
+                      Subtitle='@P.Text("Set up the dashboard for your application.", "هيّئ لوحة التحكم لتطبيقك.")' />
+        <UiBadge Variant="UiVariant.Info">@P.Text("Developer guide", "دليل المطوّر")</UiBadge>
+    </div>
+
+    <div class="developer-guide">
+        <UiCard Title='@P.Text("Project structure", "بنية المشروع")'>
+            <dl class="guide-structure">
+                <dt><code>Components/Pages</code></dt><dd>@P.Text("Routed Razor pages and page titles.", "صفحات Razor ومساراتها وعناوينها.")</dd>
+                <dt><code>Components/Layout</code></dt><dd>@P.Text("Sidebar and topbar.", "الشريطان الجانبي والعلوي.")</dd>
+                <dt><code>Components/Shared</code></dt><dd>@P.Text("Reusable UI and data-loading states.", "عناصر الواجهة وحالات تحميل البيانات المشتركة.")</dd>
+                <dt><code>Services</code></dt><dd>@P.Text("Data providers and session preferences.", "مزودات البيانات وتفضيلات الجلسة.")</dd>
+                <dt><code>Models</code></dt><dd>@P.Text("Data records and typed configuration.", "سجلات البيانات والإعدادات محددة النوع.")</dd>
+                <dt><code>wwwroot</code></dt><dd>@P.Text("Styles, scripts and logo assets.", "ملفات الأنماط والسكربتات والشعار.")</dd>
+                <dt><code>appsettings.json</code></dt><dd>@P.Text("Identity and environment configuration.", "إعدادات الهوية والبيئة.")</dd>
+            </dl>
+        </UiCard>
+
+        <UiCard Title='@P.Text("Customize your application", "خصّص التطبيق")'>
+            <p>@P.Text("Edit the Dashboard section in appsettings.json, then restart the app. Store your logo under wwwroot. A missing or rejected logo uses the built-in icon.",
+                        "عدّل قسم Dashboard في appsettings.json، ثم أعد تشغيل التطبيق. ضع الشعار تحت wwwroot. عند غياب الشعار أو رفض مساره تظهر الأيقونة المدمجة.")</p>
+            <pre dir="ltr" tabindex="0"><code>@IdentityExample</code></pre>
+        </UiCard>
+
+        <UiCard Title='@P.Text("Add a page", "أضف صفحة")'>
+            <p>@P.Text("Create Components/Pages/Inventory.razor, then add the sidebar item to Components/Layout/MainLayout.razor.",
+                        "أنشئ Components/Pages/Inventory.razor، ثم أضف رابط التنقل إلى Components/Layout/MainLayout.razor.")</p>
+            <pre dir="ltr" tabindex="0"><code>@PageExample</code></pre>
+            <pre dir="ltr" tabindex="0"><code>@NavigationExample</code></pre>
+        </UiCard>
+
+        <UiCard Title='@P.Text("Replace sample data", "استبدل البيانات التجريبية")'>
+            <p>@P.Text("Services/SampleDashboardData.cs contains fictional records. Dashboard, Customers, Orders and Analytics read through IDashboardData. Replace the registration in Program.cs, remove the sample-data labels when the provider is live, and keep fixtures out of production datasets.",
+                        "يحوي Services/SampleDashboardData.cs سجلات خيالية. تقرأ صفحات اللوحة والعملاء والطلبات والتحليلات عبر IDashboardData. استبدل تسجيله في Program.cs وأزل علامات البيانات التجريبية عند تفعيل المزود الفعلي، وافصل السجلات التجريبية عن بيانات الإنتاج.")</p>
+        </UiCard>
+
+        <UiCard Title='@P.Text("Connect a REST API", "اتصل بواجهة REST")'>
+            <p>@P.Text("Set Api:BaseUrl to the HTTPS API root, ending with a slash. Replace the sample registration with the typed client below. Save ApiDashboardData.cs under Services and map the API response to the starter models. Pass through cancellation and store credentials in server-side secret storage.",
+                        "عيّن Api:BaseUrl إلى عنوان HTTPS ينتهي بشرطة مائلة. استبدل التسجيل التجريبي بالعميل محدد النوع أدناه. احفظ ApiDashboardData.cs تحت Services وطابق استجابة الواجهة مع نماذج القالب. مرّر الإلغاء واحفظ بيانات الاعتماد في مخزن أسرار الخادم.")</p>
+            <details>
+                <summary>@P.Text("View the typed client example", "اعرض مثال العميل محدد النوع")</summary>
+                <pre dir="ltr" tabindex="0"><code>@ApiRegistration</code></pre>
+                <pre dir="ltr" tabindex="0"><code>@ApiService</code></pre>
+            </details>
+        </UiCard>
+
+        <UiCard Title='@P.Text("Theme and RTL", "السمة واتجاه RTL")'>
+            <p>@P.Text("Set DefaultTheme or DefaultLanguage for first render. Use the topbar to switch within a session. Customize tokens through AddChampUI in Program.cs and reuse --ui-* in your CSS. Translate visible labels and use logical properties such as padding-inline.",
+                        "عيّن DefaultTheme أو DefaultLanguage للعرض الأول. استخدم الشريط العلوي للتبديل خلال الجلسة. خصّص رموز التصميم عبر AddChampUI في Program.cs واستعمل --ui-* في CSS. ترجم التسميات واستخدم خصائص منطقية مثل padding-inline.")</p>
+        </UiCard>
+
+        <UiCard Title='@P.Text("Production checklist", "قائمة تجهيز الإنتاج")'>
+            <ul>
+                <li>@P.Text("Replace fictional data and configure the production API endpoints.", "استبدل البيانات الخيالية واضبط عناوين API للإنتاج.")</li>
+                <li>@P.Text("Secure secrets and configure authentication and authorization as needed.", "أمّن الأسرار واضبط المصادقة والتفويض عند الحاجة.")</li>
+                <li>@P.Text("Review configuration and set Dashboard:ShowDeveloperGuide to false before delivery.", "راجع الإعدادات وعيّن Dashboard:ShowDeveloperGuide إلى false قبل التسليم.")</li>
+                <li>@P.Text("Publish in Release and test the published Production app, including CSS, JavaScript and logos.", "انشر محليًا بوضع Release واختبر نسخة Production الناتجة، بما في ذلك CSS وJavaScript والشعارات.")</li>
+            </ul>
+        </UiCard>
+    </div>
+}
+
+@code {
+    [CascadingParameter] private WorkspacePreferences P { get; set; } = default!;
+
+    protected override void OnInitialized()
+    {
+        if (!Identity.ShowDeveloperGuide)
+            Navigation.NotFound();
+    }
+
+    private const string IdentityExample = """
+        "Dashboard": {
+          "DisplayName": "Atlas Operations",
+          "BrowserTitle": "Atlas Portal",
+          "Description": "Operations workspace",
+          "SidebarBrand": "Atlas",
+          "SidebarSubtitle": "Operations",
+          "LogoPath": "/images/brand.svg",
+          "DefaultLanguage": "en",
+          "DefaultTheme": "Dark"
+        }
+        """;
+
+    private const string PageExample = """
+        @page "/inventory"
+
+        <UiPageHeader Title="Inventory" />
+        <UiCard Title="Stock">Track items in your inventory.</UiCard>
+        """;
+
+    private const string NavigationExample = """
+        <UiSidebarItem Href="/inventory" Text="Inventory" Icon="inbox" />
+        """;
+
+    private const string ApiRegistration = """
+        builder.Services.AddHttpClient<IDashboardData, ApiDashboardData>(client =>
+        {
+            var setting = builder.Configuration["Api:BaseUrl"];
+            if (!Uri.TryCreate(setting, UriKind.Absolute, out var root) ||
+                root.Scheme != Uri.UriSchemeHttps || !root.AbsoluteUri.EndsWith('/'))
+                throw new InvalidOperationException("Set Api:BaseUrl to an HTTPS URL ending in /.");
+
+            client.BaseAddress = root;
+            client.Timeout = TimeSpan.FromSeconds(15);
+        });
+        """;
+
+    private const string ApiService = """
+        using System.Net.Http.Json;
+        using ChampUI.Starter.Models;
+
+        namespace ChampUI.Starter.Services;
+
+        public sealed class ApiDashboardData(HttpClient client) : IDashboardData
+        {
+            public Task<DashboardSnapshot> GetDashboardAsync(CancellationToken cancellationToken)
+                => ReadAsync<DashboardSnapshot>("dashboard", cancellationToken);
+
+            public Task<IReadOnlyList<Customer>> GetCustomersAsync(CancellationToken cancellationToken)
+                => ReadAsync<IReadOnlyList<Customer>>("customers", cancellationToken);
+
+            public Task<IReadOnlyList<Order>> GetOrdersAsync(CancellationToken cancellationToken)
+                => ReadAsync<IReadOnlyList<Order>>("orders", cancellationToken);
+
+            public Task<AnalyticsSnapshot> GetAnalyticsAsync(CancellationToken cancellationToken)
+                => ReadAsync<AnalyticsSnapshot>("analytics", cancellationToken);
+
+            private async Task<T> ReadAsync<T>(string path, CancellationToken cancellationToken) where T : class
+            {
+                using var response = await client.GetAsync(path, cancellationToken);
+                response.EnsureSuccessStatusCode();
+                return await response.Content.ReadFromJsonAsync<T>(cancellationToken: cancellationToken)
+                    ?? throw new InvalidDataException("The API returned an empty response.");
+            }
+        }
+        """;
+}

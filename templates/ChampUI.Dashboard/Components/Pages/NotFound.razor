@@ -1,0 +1,10 @@
+@page "/not-found"
+@layout MainLayout
+
+<DashboardTitle Title='@P.Text("Page not found", "الصفحة غير موجودة")' />
+<UiPageHeader Title='@P.Text("Page not found", "الصفحة غير موجودة")' />
+<div><a class="ui-btn ui-btn--outline" href="/">@P.Text("Go to dashboard", "الانتقال إلى لوحة المعلومات")</a></div>
+
+@code {
+    [CascadingParameter] private WorkspacePreferences P { get; set; } = default!;
+}

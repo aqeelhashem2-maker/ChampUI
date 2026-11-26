@@ -1,0 +1,71 @@
+@page "/"
+@inject IDashboardData Data
+@inject DashboardOptions Identity
+
+<DashboardTitle Title='@P.Text("Dashboard", "لوحة المعلومات")' />
+<div class="dashboard-heading">
+    <UiPageHeader Title='@(Identity.CustomDisplayName ?? P.Text("Dashboard", "لوحة المعلومات"))'
+                  Subtitle='@P.Text("Track revenue, orders and customer activity at a glance.", "تابع الإيرادات والطلبات ونشاط العملاء في مكان واحد.")' />
+    <UiBadge Variant="UiVariant.Info" Dot="true">@P.Text("Fictional sample data", "بيانات تجريبية خيالية")</UiBadge>
+</div>
+<DashboardPanel TData="DashboardSnapshot" Fetch="Data.GetDashboardAsync" Context="snapshot">
+    @if (snapshot.Months.LastOrDefault() is { } latest)
+    {
+        var period = P.Month(latest.Month) + " " + latest.Month.Year;
+        var growth = Growth(latest);
+        <section class="dashboard-metrics" aria-label='@P.Text("Key metrics", "المؤشرات الرئيسية")'>
+            <MetricCard Icon="card" Label='@P.Text("Total revenue", "إجمالي الإيرادات")' Value="@P.Currency(latest.Revenue)" Caption="@period" />
+            <MetricCard Icon="users" Label='@P.Text("Customers", "العملاء")' Value="@P.Number(latest.Customers)" Caption='@P.Text("Active accounts this month", "الحسابات النشطة هذا الشهر")' />
+            <MetricCard Icon="file-text" Label='@P.Text("Orders", "الطلبات")' Value="@P.Number(latest.Orders)" Caption='@P.Text("Orders placed this month", "الطلبات المسجلة هذا الشهر")' />
+            <MetricCard Icon="trending-up" Label='@P.Text("Growth", "النمو")' Value="@growth" Caption='@P.Text("Revenue vs. same month last year", "الإيرادات مقارنة بالشهر نفسه من العام الماضي")' />
+        </section>
+    }
+    <div class="dashboard-split">
+        <UiCard Title='@P.Text("Revenue trend", "اتجاه الإيرادات")' Subtitle='@P.Text("Monthly revenue in USD", "الإيرادات الشهرية بالدولار الأمريكي")'>
+            <div dir="ltr">
+                <UiLineChart Labels="@snapshot.Months.Select(month => P.Month(month.Month)).ToArray()"
+                             Series="@Revenue(snapshot.Months)" Height="246" ShowLegend="false"
+                             ValueFormatter="@(value => P.Currency((decimal)value))" AriaLabel='@P.Text("Monthly revenue chart", "رسم الإيرادات الشهرية")' />
+            </div>
+        </UiCard>
+        <UiCard Title='@P.Text("Recent activity", "النشاط الأخير")' Subtitle='@P.Text("Latest workspace updates", "آخر تحديثات مساحة العمل")'>
+            <ul class="activity-list">
+                @foreach (var item in snapshot.Activity)
+                {
+                    <li>
+                        <span class="activity-icon"><UiIcon Name="activity" Size="17" /></span>
+                        <div>
+                            <strong>@P.Text(item.English, item.Arabic)</strong>
+                            <time datetime="@item.Occurred.ToString("O")">@P.Date(DateOnly.FromDateTime(item.Occurred.UtcDateTime))</time>
+                        </div>
+                    </li>
+                }
+            </ul>
+        </UiCard>
+    </div>
+    <UiCard Title='@P.Text("Recent orders", "الطلبات الأخيرة")' Subtitle='@P.Text("Latest records from the sample order list", "أحدث السجلات من قائمة الطلبات التجريبية")' Flush="true">
+        <Actions><a class="ui-btn ui-btn--outline ui-btn--sm" href="/orders">@P.Text("View orders", "عرض الطلبات")</a></Actions>
+        <ChildContent>
+            <UiDataGrid TItem="Order" Items="snapshot.RecentOrders" Searchable="false" ShowColumnToggle="false"
+                        RowKeySelector="order => order.Id" SummaryFormat='@P.Text("Showing {0}–{1} of {2}", "عرض {0}–{1} من {2}")'>
+                <Columns>
+                    <UiColumn TItem="Order" Title='@P.Text("Order", "الطلب")' Field="Number" Value="order => order.Number"><Template><bdi>@context.Number</bdi></Template></UiColumn>
+                    <UiColumn TItem="Order" Title='@P.Text("Customer", "العميل")' Field="Customer" Value="order => order.Customer"><Template><bdi>@context.Customer</bdi></Template></UiColumn>
+                    <UiColumn TItem="Order" Title='@P.Text("Status", "الحالة")' Field="Status" Value="order => order.Status"><Template><OrderStatusBadge Status="context.Status" /></Template></UiColumn>
+                    <UiColumn TItem="Order" Title='@P.Text("Total", "الإجمالي")' Field="Total" Value="order => order.Total"><Template><bdi>@P.Currency(context.Total)</bdi></Template></UiColumn>
+                </Columns>
+            </UiDataGrid>
+        </ChildContent>
+    </UiCard>
+</DashboardPanel>
+
+@code {
+    [CascadingParameter] private WorkspacePreferences P { get; set; } = default!;
+
+    private ChartSeries[] Revenue(IReadOnlyList<MonthMetrics> months) =>
+        [new() { Name = P.Text("Revenue", "الإيرادات"), Values = months.Select(month => (double)month.Revenue).ToArray() }];
+
+    private static string Growth(MonthMetrics month) =>
+        month.PreviousRevenue == 0 ? "—" : ((month.Revenue - month.PreviousRevenue) / month.PreviousRevenue)
+            .ToString("+0.0%;-0.0%;0.0%", CultureInfo.InvariantCulture);
+}

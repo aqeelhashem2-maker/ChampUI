@@ -1,0 +1,94 @@
+@page "/settings"
+@implements IDisposable
+@inject WorkspaceState Workspace
+@inject UiThemeState Theme
+
+<DashboardTitle Title='@P.Text("Settings", "الإعدادات")' />
+<UiPageHeader Title='@P.Text("Settings", "الإعدادات")'
+              Subtitle='@P.Text("Customize this workspace for the current session.", "خصّص مساحة العمل لهذه الجلسة.")' />
+<UiCard Class="settings-card" Title='@P.Text("Workspace preferences", "تفضيلات مساحة العمل")'>
+    <form class="settings-form" @onsubmit="Save" @onsubmit:preventDefault>
+        <UiTextField Label='@P.Text("Workspace name", "اسم مساحة العمل")' Value="@_name" ValueChanged="NameChanged"
+                     Error="@(_showNameError ? P.Text("Enter a workspace name of 1–60 characters.", "أدخل اسمًا لمساحة العمل من ١ إلى ٦٠ حرفًا.") : null)"
+                     maxlength="60" />
+        <div class="settings-fields">
+            <UiSelect TValue="UiThemeMode" Label='@P.Text("Theme", "السمة")' Options="Themes" @bind-Value="_mode" @bind-Value:after="ResetSaved" />
+            <UiSelect TValue="bool" Label='@P.Text("Language", "اللغة")' Options="Languages" @bind-Value="_arabic" @bind-Value:after="ResetSaved" />
+        </div>
+        <p class="muted">@P.Text("Preferences reset when you reload the app.", "تُعاد التفضيلات إلى قيمها الأصلية عند إعادة تحميل التطبيق.")</p>
+        <div><UiButton Type="submit">@P.Text("Save preferences", "حفظ التفضيلات")</UiButton></div>
+        @if (_saved)
+        {
+            <div role="status"><UiAlert Variant="UiVariant.Success">@P.Text("Preferences saved for this session.", "حُفظت التفضيلات لهذه الجلسة.")</UiAlert></div>
+        }
+    </form>
+</UiCard>
+
+@code {
+    [CascadingParameter] private WorkspacePreferences P { get; set; } = default!;
+
+    private string? _name;
+    private bool _arabic;
+    private UiThemeMode _mode;
+    private bool _saved;
+    private bool _showNameError;
+
+    private SelectOption<UiThemeMode>[] Themes =>
+    [
+        new(UiThemeMode.Light, P.Text("Light", "فاتحة")),
+        new(UiThemeMode.Dark, P.Text("Dark", "داكنة"))
+    ];
+
+    private static readonly SelectOption<bool>[] Languages = [new(false, "English"), new(true, "العربية")];
+
+    protected override void OnInitialized()
+    {
+        _name = P.Name;
+        _arabic = P.Arabic;
+        _mode = Theme.Mode;
+        Theme.Changed += ThemeChanged;
+        Workspace.Changed += LanguageChanged;
+    }
+
+    private void ThemeChanged() => _ = InvokeAsync(() =>
+    {
+        _mode = Theme.Mode;
+        StateHasChanged();
+    });
+
+    private void LanguageChanged() => _ = InvokeAsync(() =>
+    {
+        _arabic = Workspace.Current.Arabic;
+        StateHasChanged();
+    });
+
+    private void ResetSaved() => _saved = false;
+
+    private void NameChanged(string? value)
+    {
+        _name = value;
+        _showNameError = false;
+        _saved = false;
+    }
+
+    private void Save()
+    {
+        _saved = false;
+        if (_name?.Trim() is not { Length: >= 1 and <= 60 } name)
+        {
+            _showNameError = true;
+            return;
+        }
+
+        _showNameError = false;
+        Workspace.Save(name, _arabic, _mode);
+        _name = name;
+        _saved = true;
+    }
+
+    public void Dispose()
+    {
+        Theme.Changed -= ThemeChanged;
+        Workspace.Changed -= LanguageChanged;
+    }
+}

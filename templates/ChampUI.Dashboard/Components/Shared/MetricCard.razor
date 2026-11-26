@@ -1,0 +1,15 @@
+<UiCard BodyClass="metric-body">
+    <div class="metric-leading">
+        <span class="metric-icon"><UiIcon Name="@Icon" Size="19" /></span>
+        <span class="metric-label">@Label</span>
+    </div>
+    <strong class="metric-value"><bdi>@Value</bdi></strong>
+    <span class="metric-caption">@Caption</span>
+</UiCard>
+
+@code {
+    [Parameter, EditorRequired] public string Icon { get; set; } = "";
+    [Parameter, EditorRequired] public string Label { get; set; } = "";
+    [Parameter, EditorRequired] public string Value { get; set; } = "";
+    [Parameter, EditorRequired] public string Caption { get; set; } = "";
+}

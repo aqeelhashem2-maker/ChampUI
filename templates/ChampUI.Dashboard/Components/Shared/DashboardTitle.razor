@@ -1,0 +1,7 @@
+@inject DashboardOptions Identity
+
+<PageTitle>@Title · @Identity.DocumentTitle</PageTitle>
+
+@code {
+    [Parameter, EditorRequired] public string Title { get; set; } = "";
+}

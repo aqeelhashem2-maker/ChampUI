@@ -1,0 +1,23 @@
+@inject DashboardOptions Identity
+
+<!DOCTYPE html>
+<html lang="@Identity.DefaultLanguage" dir="@(Identity.IsArabic ? "rtl" : "ltr")">
+<head>
+    <meta charset="utf-8" />
+    <meta name="description" content="@Identity.Description" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <base href="/" />
+    <ResourcePreloader />
+    <link rel="icon" href="@Assets[Identity.AvailableLogo ?? "dashboard-icon.svg"]" />
+    <link rel="stylesheet" href="@Assets["_content/ChampUI/champui.css"]" />
+    <link rel="stylesheet" href="@Assets["dashboard.css"]" />
+    <ImportMap />
+    <HeadOutlet @rendermode="InteractiveServer" />
+</head>
+<body>
+    <Routes @rendermode="InteractiveServer" />
+    <script src="@Assets["_content/ChampUI/js/champui.js"]"></script>
+    <script src="@Assets["dashboard.js"]"></script>
+    <script src="@Assets["_framework/blazor.web.js"]"></script>
+</body>
+</html>

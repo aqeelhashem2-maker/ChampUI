@@ -1,0 +1,58 @@
+@typeparam TData where TData : class
+@implements IDisposable
+@inject ILogger<DashboardPanel<TData>> Logger
+
+@if (_loading)
+{
+    <UiCard><p role="status">@Preferences.Text("Loading sample data…", "جارٍ تحميل البيانات التجريبية…")</p></UiCard>
+}
+else if (_data is { } data)
+{
+    @ChildContent(data)
+}
+else
+{
+    <UiAlert Variant="UiVariant.Danger">
+        @Preferences.Text("The data could not be loaded.", "تعذّر تحميل البيانات.")
+    </UiAlert>
+    <div><UiButton Variant="UiVariant.Outline" OnClick="LoadAsync">@Preferences.Text("Retry", "إعادة المحاولة")</UiButton></div>
+}
+
+@code {
+    [CascadingParameter] private WorkspacePreferences Preferences { get; set; } = default!;
+    [Parameter, EditorRequired] public Func<CancellationToken, Task<TData>> Fetch { get; set; } = default!;
+    [Parameter, EditorRequired] public RenderFragment<TData> ChildContent { get; set; } = default!;
+
+    private readonly CancellationTokenSource _lifetime = new();
+    private TData? _data;
+    private bool _loading = true;
+
+    protected override Task OnInitializedAsync() => LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        var token = _lifetime.Token;
+        try
+        {
+            _data = await Fetch(token);
+        }
+        catch (OperationCanceledException) when (token.IsCancellationRequested)
+        {
+        }
+        catch (Exception error)
+        {
+            Logger.LogError(error, "Could not load dashboard data ({DataType})", typeof(TData).Name);
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    public void Dispose()
+    {
+        _lifetime.Cancel();
+        _lifetime.Dispose();
+    }
+}

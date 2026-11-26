@@ -1,0 +1,110 @@
+@inherits LayoutComponentBase
+@implements IDisposable
+@inject WorkspaceState Workspace
+@inject DashboardOptions Identity
+@inject UiThemeState Theme
+@inject IJSRuntime JS
+
+<CascadingValue Value="Workspace.Current">
+    <UiAppShell Class="dashboard-shell" Language="@Language" Direction="@(Preferences.Arabic ? UiTextDirection.Rtl : UiTextDirection.Ltr)">
+        <Sidebar>
+            <UiSidebar Label='@Preferences.Text("Main navigation", "التنقل الرئيسي")'>
+                <Brand>
+                    <a class="dashboard-brand" href="/" aria-label="@Identity.DisplayName">
+                        <span class="dashboard-brand-mark">
+                            @if (Identity.AvailableLogo is { } logo)
+                            {
+                                <img src="@Assets[logo]" alt="" width="38" height="38" />
+                            }
+                            else
+                            {
+                                <UiIcon Name="layers" Size="20" />
+                            }
+                        </span>
+                        <span class="ui-brand-text">@Identity.SidebarBrand <small>@BrandSubtitle</small></span>
+                    </a>
+                </Brand>
+                <ChildContent>
+                    <UiSidebarItem Href="/" Match="NavLinkMatch.All" Text='@Preferences.Text("Dashboard", "لوحة المعلومات")' Icon="home" />
+                    <UiSidebarItem Href="/customers" Text='@Preferences.Text("Customers", "العملاء")' Icon="users" />
+                    <UiSidebarItem Href="/orders" Text='@Preferences.Text("Orders", "الطلبات")' Icon="file-text" />
+                    <UiSidebarItem Href="/analytics" Text='@Preferences.Text("Analytics", "التحليلات")' Icon="bar-chart" />
+                    <UiSidebarItem Href="/settings" Text='@Preferences.Text("Settings", "الإعدادات")' Icon="settings" />
+                    @if (Identity.ShowDeveloperGuide)
+                    {
+                        <UiSidebarItem Href="/getting-started" Text='@Preferences.Text("Getting Started", "البدء")' Icon="layers" />
+                    }
+                </ChildContent>
+                <Footer>© Sadeem Systems</Footer>
+            </UiSidebar>
+        </Sidebar>
+        <Topbar>
+            <UiTopbar MenuLabel='@Preferences.Text("Toggle navigation", "فتح أو إغلاق قائمة التنقل")'>
+                <Start>
+                    <span class="workspace-icon"><UiIcon Name="building" Size="18" /></span>
+                    <strong class="workspace-name" title="@WorkspaceName" dir="auto">@WorkspaceName</strong>
+                </Start>
+                <End>
+                    <UiButton Icon='@(Theme.Mode == UiThemeMode.Light ? "moon" : "sun")' Size="UiSize.Small"
+                              Variant="UiVariant.Ghost" Disabled="@(!_ready)" OnClick="Theme.Toggle" aria-label="@ThemeLabel">
+                        <span class="theme-label">@ThemeLabel</span>
+                    </UiButton>
+                    <UiButton Icon="globe" Size="UiSize.Small" Variant="UiVariant.Outline" Disabled="@(!_ready)"
+                              OnClick="Workspace.ToggleLanguage">
+                        <span lang='@(Preferences.Arabic ? "en" : "ar")'>@(Preferences.Arabic ? "English" : "العربية")</span>
+                    </UiButton>
+                </End>
+            </UiTopbar>
+        </Topbar>
+        <ChildContent>@Body</ChildContent>
+    </UiAppShell>
+</CascadingValue>
+
+@code {
+    private bool _ready;
+    private string? _documentLanguage;
+    private WorkspacePreferences Preferences => Workspace.Current;
+    private string Language => Preferences.Arabic ? "ar" : "en";
+    private string WorkspaceName => Preferences.Name;
+    private string BrandSubtitle => Preferences.Text(Identity.SidebarSubtitle, Identity.SidebarSubtitleArabic);
+    private string ThemeLabel => Theme.Mode == UiThemeMode.Light
+        ? Preferences.Text("Dark mode", "الوضع الداكن")
+        : Preferences.Text("Light mode", "الوضع الفاتح");
+
+    protected override void OnInitialized()
+    {
+        Workspace.Changed += PreferencesChanged;
+        Theme.Changed += PreferencesChanged;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            _ready = true;
+            StateHasChanged();
+        }
+
+        var language = Language;
+        if (language == _documentLanguage)
+            return;
+
+        try
+        {
+            await JS.InvokeVoidAsync("dashboard.setLanguage", language, language == "ar" ? "rtl" : "ltr");
+            _documentLanguage = language;
+        }
+        catch (JSDisconnectedException)
+        {
+            // The circuit may disconnect during navigation.
+        }
+    }
+
+    private void PreferencesChanged() => _ = InvokeAsync(StateHasChanged);
+
+    public void Dispose()
+    {
+        Workspace.Changed -= PreferencesChanged;
+        Theme.Changed -= PreferencesChanged;
+    }
+}

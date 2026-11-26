@@ -14,13 +14,13 @@ Explore **Foundations**, **Forms**, **Data** and **Charts** in ChampUI Showcase.
 
 ## Use ChampUI in a .NET 10 app
 
-For a local release candidate, put the package in a local feed and restore it with:
+Install the published package from NuGet.org:
 
 ```sh
-dotnet add package ChampUI --version 0.3.1 --source /path/to/local-feed
+dotnet add package ChampUI --version 0.3.1
 ```
 
-The public package will be installable without the local source flag after publication. The package ID is `ChampUI`.
+For a local release candidate, add its package directory as a temporary NuGet source in an isolated consumer.
 
 Register the library and map static assets in the host:
 
@@ -43,6 +43,10 @@ Load the assets alongside the Blazor script in the app's root component:
 ```
 
 Wrap content in `UiAppShell` to apply theme tokens. Use `UiThemeState` to switch appearance and the shell's `Direction` and `Language` parameters for RTL.
+
+## Dashboard Starter
+
+Generate a .NET 10 Blazor dashboard with fictional data, English and Arabic layouts, and theme and identity settings. The starter template package is built and installed locally. Follow the [Dashboard Starter guide](templates/ChampUI.Dashboard/README.md).
 
 ## DataGrid behavior
 
