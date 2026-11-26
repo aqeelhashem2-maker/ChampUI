@@ -1,0 +1,56 @@
+@page "/analytics"
+@inject IDashboardData Data
+
+<DashboardTitle Title='@P.Text("Analytics", "التحليلات")' />
+<UiPageHeader Title='@P.Text("Analytics", "التحليلات")'
+              Subtitle='@P.Text("Compare performance across fictional reporting periods.", "قارن الأداء بين فترات التقارير التجريبية.")' />
+<DashboardPanel TData="AnalyticsSnapshot" Fetch="Data.GetAnalyticsAsync" Context="snapshot">
+    @{
+        var labels = snapshot.Months.Select(month => P.Month(month.Month)).ToArray();
+        var revenue = snapshot.Months.Sum(month => month.Revenue);
+        var previous = snapshot.Months.Sum(month => month.PreviousRevenue);
+        var growth = previous == 0 ? "—" : ((revenue - previous) / previous).ToString("+0.0%;-0.0%;0.0%", CultureInfo.InvariantCulture);
+    }
+    <section class="dashboard-metrics dashboard-metrics--analytics" aria-label='@P.Text("Period comparison", "مقارنة الفترات")'>
+        <MetricCard Icon="card" Label='@P.Text("Current period", "الفترة الحالية")' Value="@P.Currency(revenue)"
+                    Caption='@P.Text("Total revenue", "إجمالي الإيرادات")' />
+        <MetricCard Icon="calendar" Label='@P.Text("Prior year", "العام السابق")' Value="@P.Currency(previous)"
+                    Caption='@P.Text("Revenue over the same months", "الإيرادات للأشهر نفسها")' />
+        <MetricCard Icon="activity" Label='@P.Text("Revenue change", "تغير الإيرادات")' Value="@growth"
+                    Caption='@P.Text("Compared with the prior year", "مقارنةً بالعام السابق")' />
+    </section>
+    <UiCard Title='@P.Text("Revenue comparison", "مقارنة الإيرادات")' Subtitle='@P.Text("Monthly revenue by year", "الإيرادات الشهرية حسب العام")'>
+        <div dir="ltr">
+            <UiBarChart Labels="labels" Series="@Revenue(snapshot.Months)" Height="254"
+                        ValueFormatter="@(value => P.Currency((decimal)value))" AriaLabel='@P.Text("Revenue comparison chart", "رسم مقارنة الإيرادات")' />
+        </div>
+    </UiCard>
+    <div class="dashboard-split">
+        <UiCard Title='@P.Text("Order volume", "حجم الطلبات")'>
+            <div dir="ltr">
+                <UiAreaChart Labels="labels" Series="@Volume(snapshot.Months)" Height="224" ShowLegend="false"
+                             AriaLabel='@P.Text("Monthly order volume chart", "رسم حجم الطلبات الشهري")' />
+            </div>
+        </UiCard>
+        <UiCard Title='@P.Text("Order status breakdown", "توزيع حالات الطلبات")' Subtitle='@P.Text("Fictional orders in the sample list", "الطلبات الخيالية في القائمة التجريبية")'>
+            <UiDonutChart Segments="@Segments(snapshot.OrderCounts)" CenterLabel='@P.Text("Orders", "الطلبات")'
+                          AriaLabel='@P.Text("Order breakdown chart", "رسم توزيع الطلبات")' />
+        </UiCard>
+    </div>
+</DashboardPanel>
+
+@code {
+    [CascadingParameter] private WorkspacePreferences P { get; set; } = default!;
+
+    private ChartSeries[] Revenue(IReadOnlyList<MonthMetrics> months) =>
+    [
+        new() { Name = P.Text("Current period", "الفترة الحالية"), Values = months.Select(month => (double)month.Revenue).ToArray() },
+        new() { Name = P.Text("Prior year", "العام السابق"), Values = months.Select(month => (double)month.PreviousRevenue).ToArray() }
+    ];
+
+    private ChartSeries[] Volume(IReadOnlyList<MonthMetrics> months) =>
+        [new() { Name = P.Text("Orders", "الطلبات"), Values = months.Select(month => (double)month.Orders).ToArray() }];
+
+    private ChartSegment[] Segments(IReadOnlyDictionary<OrderStatus, int> counts) =>
+        counts.Select(pair => new ChartSegment { Label = P.Status(pair.Key), Value = pair.Value }).ToArray();
+}

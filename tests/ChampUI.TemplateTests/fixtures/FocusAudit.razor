@@ -1,0 +1,39 @@
+@page "/focus-audit"
+@using ChampUI.Components.Navigation
+
+<UiPageHeader Title="Focus audit" />
+<UiCard BodyClass="settings-form">
+    <UiTextField Label="Text" />
+    <UiTextArea Label="Notes" />
+    <UiSelect TValue="string" Label="Category" Options="Options" @bind-Value="_category" />
+    <UiNumberField Label="Quantity" @bind-Value="_quantity" />
+    <UiDatePicker Label="Date" />
+    <div><label for="standalone">Standalone field</label><input id="standalone" class="ui-input" /></div>
+    <UiCheckbox Label="Confirmed" @bind-Checked="_confirmed" />
+    <label><input type="radio" name="frequency" value="weekly" checked /> Weekly</label>
+    <label><input type="radio" name="frequency" value="monthly" /> Monthly</label>
+    <UiSwitch Label="Notifications" @bind-Checked="_notifications" />
+    <div>
+        <UiDropdown Label="Actions">
+            <Trigger>Actions</Trigger>
+            <ChildContent><button class="ui-menu__item" type="button" role="menuitem" @onclick="() => _chosen = true">Select action</button></ChildContent>
+        </UiDropdown>
+    </div>
+    @if (_chosen) { <p>Action selected</p> }
+    <div><UiButton OnClick="() => _visible = true">Open dialog</UiButton></div>
+    <UiDialog Title="Example dialog" @bind-Visible="_visible">
+        <UiTextField Label="Dialog name" />
+    </UiDialog>
+</UiCard>
+
+@code {
+    private static readonly SelectOption<string>[] Options = [new("one", "One"), new("two", "Two")];
+    private string _category = "one";
+    private double? _quantity = 4;
+    private bool _confirmed;
+    private bool _notifications;
+    private bool _chosen;
+    private bool _visible;
+}
+
+<a href="/getting-started">Open developer guide from fixture</a>

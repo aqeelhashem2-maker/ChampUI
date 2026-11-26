@@ -1,0 +1,8 @@
+{
+  "name": "champui-template-tests",
+  "private": true,
+  "engines": { "node": ">=18" },
+  "devDependencies": {
+    "playwright": "1.49.0"
+  }
+}

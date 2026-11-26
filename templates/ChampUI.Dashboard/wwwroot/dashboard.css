@@ -1,0 +1,158 @@
+html, body { margin: 0; }
+
+.dashboard-shell {
+    --ui-sidebar-width: 232px;
+    --ui-topbar-height: 64px;
+}
+
+.dashboard-shell .dashboard-brand,
+.workspace-icon,
+.metric-icon,
+.activity-icon {
+    display: inline-flex;
+    align-items: center;
+}
+
+.dashboard-shell .dashboard-brand {
+    gap: var(--ui-space-3);
+    font-weight: var(--ui-weight-bold);
+    font-size: var(--ui-text-lg);
+    line-height: 1.3;
+}
+
+.dashboard-brand-mark {
+    display: inline-grid;
+    place-items: center;
+    width: 38px;
+    height: 38px;
+    border-radius: var(--ui-radius-md);
+    flex: 0 0 auto;
+    color: var(--ui-accent-contrast);
+    background: var(--ui-accent-strong);
+}
+
+.dashboard-brand small {
+    display: block;
+    color: var(--ui-text-muted);
+    font-weight: var(--ui-weight-medium);
+    font-size: var(--ui-text-xs);
+}
+
+.workspace-icon { color: var(--ui-text-muted); }
+.workspace-name { max-width: min(30vw, 20rem); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dashboard-shell .ui-topbar__menu { display: none; }
+.dashboard-shell .ui-page-header__title { width: fit-content; }
+.dashboard-heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--ui-space-3); }
+.dashboard-heading .ui-page-header { margin: 0; }
+.dashboard-metrics, .dashboard-split { display: grid; gap: var(--ui-space-4); }
+.dashboard-metrics { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.dashboard-metrics--analytics { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.dashboard-split { grid-template-columns: minmax(0, 1.8fr) minmax(0, 1fr); }
+
+.metric-body { display: grid; justify-items: start; align-content: start; gap: var(--ui-space-2); }
+.metric-leading { display: flex; align-items: center; gap: var(--ui-space-2); }
+.metric-icon, .activity-icon {
+    justify-content: center;
+    flex: 0 0 auto;
+    width: 34px;
+    height: 34px;
+    border-radius: var(--ui-radius-md);
+    color: var(--ui-accent);
+    background: var(--ui-accent-soft);
+}
+
+.metric-label { font-size: var(--ui-text-sm); font-weight: var(--ui-weight-semibold); }
+.metric-value { font-size: var(--ui-text-2xl); letter-spacing: -.035em; font-variant-numeric: tabular-nums; line-height: 1.2; }
+.metric-caption, .muted { color: var(--ui-text-muted); font-size: var(--ui-text-sm); }
+
+.activity-list { list-style: none; padding: 0; margin: 0; }
+.activity-list li { display: flex; align-items: center; gap: var(--ui-space-3); padding-block: var(--ui-space-3); }
+.activity-list li:first-child { padding-block-start: 0; }
+.activity-list li + li { border-block-start: 1px solid var(--ui-border); }
+.activity-list strong, .activity-list time { display: block; font-size: var(--ui-text-sm); }
+.activity-list time { color: var(--ui-text-muted); }
+
+.dashboard-shell .record-link { color: var(--ui-accent); text-decoration: underline; text-underline-offset: 3px; font-weight: var(--ui-weight-semibold); }
+.order-details { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: var(--ui-space-4); margin: 0; }
+.order-details dt { color: var(--ui-text-muted); }
+.order-details dd { margin: 0; overflow-wrap: anywhere; }
+.settings-card { width: min(100%, 42rem); }
+.settings-form, .settings-fields { display: grid; gap: var(--ui-space-4); }
+.settings-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
+@media (min-width: 769px) and (max-width: 1024px) {
+    .dashboard-shell { --ui-sidebar-width: var(--ui-sidebar-width-compact); }
+}
+@media (max-width: 1000px) {
+    .dashboard-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .dashboard-split { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 768px) {
+    .dashboard-shell[data-nav-open="false"] .ui-sidebar { visibility: hidden; }
+    .dashboard-shell .ui-sidebar__footer { display: block; }
+    .dashboard-shell .ui-topbar__menu { display: inline-grid; }
+    .dashboard-shell .ui-topbar__end { gap: var(--ui-space-1); }
+}
+@media (max-width: 640px) {
+    .dashboard-shell .ui-chart__svg { min-width: 0; }
+    .dashboard-shell .ui-chart__axis-label { font-size: 18px; }
+}
+@media (max-width: 480px) {
+    .workspace-icon, .theme-label { display: none; }
+    .dashboard-shell .ui-topbar__end .ui-btn--ghost { min-width: 44px; }
+    .dashboard-metrics { gap: var(--ui-space-2); }
+    .metric-body { padding-inline: var(--ui-space-3); }
+    .metric-icon { width: 26px; height: 26px; }
+    .metric-value { font-size: var(--ui-text-xl); }
+}
+
+.dashboard-brand-mark img {
+    display: block;
+    border-radius: inherit;
+    object-fit: contain;
+}
+
+/* ChampUI wraps these native fields in .ui-input. Give the composite one boundary,
+   while leaving standalone controls and ChampUI's checkbox indicator intact. */
+.dashboard-shell .ui-input:has(> :is(input:not([type="checkbox"], [type="radio"]), textarea, select):focus) {
+    outline: 2px solid var(--ui-accent);
+    outline-offset: 2px;
+    border-color: var(--ui-border);
+    box-shadow: none;
+}
+
+.dashboard-shell .ui-input--invalid:has(> :is(input, textarea):focus) {
+    border-color: var(--ui-danger);
+}
+
+.dashboard-shell .ui-input > :is(input:not([type="checkbox"], [type="radio"]), textarea, select):focus-visible {
+    outline: none;
+}
+
+.developer-guide {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 29rem), 1fr));
+    gap: var(--ui-space-4);
+}
+
+.developer-guide > * { min-width: 0; }
+.developer-guide pre {
+    overflow: auto;
+    text-align: start;
+    padding: var(--ui-space-3);
+    margin: var(--ui-space-3) 0 0;
+    border-radius: var(--ui-radius-md);
+    background: var(--ui-surface-elevated);
+}
+.developer-guide code { font-family: var(--ui-font-mono); }
+.developer-guide summary { cursor: pointer; margin-block-start: var(--ui-space-3); }
+.developer-guide ul { padding-inline-start: var(--ui-space-6); margin-block: 0; }
+
+.guide-structure {
+    display: grid;
+    grid-template-columns: minmax(0, auto) minmax(0, 1fr);
+    gap: var(--ui-space-2) var(--ui-space-4);
+    margin: 0;
+}
+.guide-structure dt { direction: ltr; text-align: match-parent; overflow-wrap: anywhere; }
+.guide-structure dd { margin: 0; }

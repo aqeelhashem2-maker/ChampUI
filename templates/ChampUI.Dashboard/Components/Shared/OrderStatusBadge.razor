@@ -1,0 +1,13 @@
+<UiBadge Variant="@Variant" Dot="true">@Preferences.Status(Status)</UiBadge>
+
+@code {
+    [CascadingParameter] private WorkspacePreferences Preferences { get; set; } = default!;
+    [Parameter, EditorRequired] public OrderStatus Status { get; set; }
+
+    private UiVariant Variant => Status switch
+    {
+        OrderStatus.Completed => UiVariant.Success,
+        OrderStatus.Processing => UiVariant.Info,
+        _ => UiVariant.Warning
+    };
+}

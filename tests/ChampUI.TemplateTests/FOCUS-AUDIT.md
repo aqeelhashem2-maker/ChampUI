@@ -1,0 +1,15 @@
+# Focus audit
+
+The original Orders search was reproduced in Chromium from the installed 0.1.0 template. The DOM was `.ui-shell … .ui-input.ui-input--sm > input[type="search"]`. Clicking the editable input made it match `:focus-visible`. ChampUI's `.ui-shell :focus-visible` gave it a solid 2px indigo outline. At the same time `.ui-input:focus-within` changed the wrapper border to indigo and added a 3px translucent shadow. There was no starter focus override in that version.
+
+The starter stylesheet scopes its override to wrappers with a focused direct native field. It draws one solid 2px outline using `--ui-accent` and removes the wrapper shadow and redundant native outline. The invalid wrapper retains its error border. The native field still receives focus. A standalone element carrying `.ui-input` retains its keyboard outline. Focus on ChampUI checkboxes is drawn on the visible checkbox proxy because the native input is visually hidden. Radios, switches, buttons, pagination, navigation and menu items retain their own keyboard indicators. Blazor's `FocusOnNavigate` still moves focus to the page heading after route changes, so the heading can show its single outline.
+
+The browser suite checks the active element, computed outlines, absence of the redundant composite shadow, positive rendered bounds and at least 3:1 contrast for the sampled focus boundary against its adjacent background. This is targeted verification of focus visibility and non-text contrast. The component fixture reaches controls that the starter does not ship on its pages. It uses the actual `UiTextField`, `UiTextArea`, `UiSelect`, `UiNumberField`, `UiDatePicker`, `UiCheckbox`, `UiSwitch`, `UiDialog` and `UiDropdown` from ChampUI 0.3.1, plus native radios.
+
+## Separate ChampUI patch proposal
+
+The duplicate ring can be corrected within the starter. If ChampUI adopts the single composite boundary for all consumers, apply the same constrained wrapper/child selectors in the library stylesheet and cover numeric step buttons, invalid fields, native standalone inputs and forced colors in library tests.
+
+Separately, the 0.3.1 `UiDialog.razor` sets `aria-modal="true"` but lacks initial focus on open, Tab containment and focus restoration on close. The fixture exercises the focus indicators and keyboard operation of the existing dialog controls. The modal behavior belongs in the library because it depends on the component lifecycle. A minimal library change would reference the dialog element, activate focus containment after the visible render, save and restore the opening element, and release the containment when closed or disposed. Keep the current public API. Add regression coverage for Tab, Shift+Tab, Escape and returning focus to the opener. A library patch release would be needed to distribute either core change, independently of this starter patch.
+
+References [WCAG 2.2 Focus Visible](https://www.w3.org/TR/WCAG22/#focus-visible) and [Non-text Contrast](https://www.w3.org/WAI/WCAG22/Understanding/non-text-contrast.html).

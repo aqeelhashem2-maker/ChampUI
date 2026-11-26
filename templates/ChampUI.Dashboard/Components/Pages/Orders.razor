@@ -1,0 +1,74 @@
+@page "/orders"
+@page "/orders/{Id:int}"
+@inject IDashboardData Data
+
+<DashboardTitle Title='@(Id.HasValue ? P.Text("Order details", "تفاصيل الطلب") : P.Text("Orders", "الطلبات"))' />
+<DashboardPanel TData="IReadOnlyList<Order>" Fetch="Data.GetOrdersAsync" Context="orders">
+    @if (Id.HasValue)
+    {
+        <UiPageHeader Title='@P.Text("Order details", "تفاصيل الطلب")' Subtitle='@P.Text("Fictional sample order", "طلب تجريبي خيالي")' />
+        <div><a class="ui-btn ui-btn--outline" href="/orders">@P.Text("Back to orders", "العودة إلى الطلبات")</a></div>
+        @if (orders.FirstOrDefault(order => order.Id == Id) is { } selected)
+        {
+            <UiCard Title="@selected.Number">
+                <dl class="order-details">
+                    <dt>@P.Text("Customer", "العميل")</dt><dd><bdi>@selected.Customer</bdi></dd>
+                    <dt>@P.Text("Description", "الوصف")</dt><dd><bdi>@selected.Description</bdi></dd>
+                    <dt>@P.Text("Placed", "تاريخ الطلب")</dt><dd>@P.Date(selected.Placed)</dd>
+                    <dt>@P.Text("Total", "الإجمالي")</dt><dd><bdi>@P.Currency(selected.Total)</bdi></dd>
+                    <dt>@P.Text("Status", "الحالة")</dt><dd><OrderStatusBadge Status="selected.Status" /></dd>
+                </dl>
+            </UiCard>
+        }
+        else
+        {
+            <UiEmptyState Title='@P.Text("Order not found", "لم يُعثر على الطلب")' />
+        }
+    }
+    else
+    {
+        <UiPageHeader Title='@P.Text("Orders", "الطلبات")'
+                      Subtitle='@P.Text("Review fictional orders and their fulfillment status.", "راجع الطلبات التجريبية وحالة تنفيذها.")' />
+        <UiCard Flush="true">
+            <UiDataGrid @key="P.Arabic" TItem="Order" Items="orders" PageSize="6" RowKeySelector="order => order.Id"
+                        AllowCsvExport="true" AllowXlsxExport="true"
+                        SearchPlaceholder='@P.Text("Search orders…", "ابحث عن الطلبات…")'
+                        EmptyTitle='@P.Text("No orders found", "لم يُعثر على طلبات")'
+                        EmptyDescription='@P.Text("Try a different search or clear filters.", "جرّب بحثًا مختلفًا أو امسح التصفية.")'
+                        PreviousLabel='@P.Text("Previous page", "الصفحة السابقة")' NextLabel='@P.Text("Next page", "الصفحة التالية")'
+                        PageLabel='@P.Text("Page", "الصفحة")' ColumnsLabel='@P.Text("Columns", "الأعمدة")'
+                        FilterLabel='@P.Text("Filter", "تصفية")' FilterPlaceholder='@P.Text("Filter…", "تصفية…")'
+                        ApplyFilterLabel='@P.Text("Apply", "تطبيق")' ClearFilterLabel='@P.Text("Clear", "مسح")'
+                        ClearAllFiltersLabel='@P.Text("Clear all", "مسح الكل")' ExportLabel='@P.Text("Export", "تصدير")'
+                        ExportCsvCurrentPageLabel='@P.Text("CSV — current page", "CSV — الصفحة الحالية")'
+                        ExportCsvAllLabel='@P.Text("CSV — all rows", "CSV — جميع الصفوف")'
+                        ExportXlsxCurrentPageLabel='@P.Text("Excel — current page", "Excel — الصفحة الحالية")'
+                        ExportXlsxAllLabel='@P.Text("Excel — all rows", "Excel — جميع الصفوف")'
+                        ExportErrorMessage='@P.Text("Export failed.", "تعذّر التصدير.")'
+                        SummaryFormat='@P.Text("Showing {0}–{1} of {2}", "عرض {0}–{1} من {2}")'>
+                <Columns>
+                    <UiColumn TItem="Order" Title='@P.Text("Order", "الطلب")' Field="Number" Value="order => order.Number" Sortable="true" Searchable="true">
+                        <Template><a class="record-link" href="@($"/orders/{context.Id}")"><bdi>@context.Number</bdi></a></Template>
+                    </UiColumn>
+                    <UiColumn TItem="Order" Title='@P.Text("Customer", "العميل")' Field="Customer" Value="order => order.Customer" Sortable="true" Searchable="true">
+                        <Template><bdi>@context.Customer</bdi></Template>
+                    </UiColumn>
+                    <UiColumn TItem="Order" Title='@P.Text("Placed", "تاريخ الطلب")' Field="Placed" Value="order => order.Placed" Sortable="true">
+                        <Template>@P.Date(context.Placed)</Template>
+                    </UiColumn>
+                    <UiColumn TItem="Order" Title='@P.Text("Status", "الحالة")' Field="Status" Value="order => P.Status(order.Status)" Sortable="true" Filterable="true">
+                        <Template><OrderStatusBadge Status="context.Status" /></Template>
+                    </UiColumn>
+                    <UiColumn TItem="Order" Title='@P.Text("Total", "الإجمالي")' Field="Total" Value="order => order.Total" Sortable="true">
+                        <Template><bdi>@P.Currency(context.Total)</bdi></Template>
+                    </UiColumn>
+                </Columns>
+            </UiDataGrid>
+        </UiCard>
+    }
+</DashboardPanel>
+
+@code {
+    [Parameter] public int? Id { get; set; }
+    [CascadingParameter] private WorkspacePreferences P { get; set; } = default!;
+}

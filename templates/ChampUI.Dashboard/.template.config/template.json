@@ -1,0 +1,28 @@
+{
+  "$schema": "http://json.schemastore.org/template",
+  "author": "Sadeem Systems",
+  "classifications": ["Web", "Blazor", "Dashboard", "ChampUI"],
+  "identity": "SadeemSystems.ChampUI.Dashboard.CSharp",
+  "name": "ChampUI Dashboard Starter",
+  "shortName": "champui-dashboard",
+  "description": "A .NET 10 Blazor Interactive Server dashboard with ChampUI, fictional operations data, and English and Arabic layouts.",
+  "sourceName": "ChampUI.Starter",
+  "preferNameDirectory": true,
+  "tags": { "language": "C#", "type": "project" },
+  "constraints": {
+    "dotnet-sdk": {
+      "type": "sdk-version",
+      "args": "[10.0.100,)"
+    }
+  },
+  "sources": [
+    {
+      "exclude": [
+        "**/[Bb]in/**", "**/[Oo]bj/**", "**/.template.config/**", "**/.git/**",
+        "**/.vs/**", "**/.idea/**", "**/.DS_Store", "**/*.user", "**/*.filelist",
+        "**/TestResults/**", "**/NuGet.Config", "**/appsettings.Local.json", "**/.env*"
+      ]
+    }
+  ],
+  "primaryOutputs": [{ "path": "ChampUI.Starter.csproj" }]
+}

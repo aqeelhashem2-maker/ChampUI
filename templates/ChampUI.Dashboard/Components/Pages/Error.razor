@@ -1,0 +1,9 @@
+@page "/error"
+
+<DashboardTitle Title='@P.Text("Error", "خطأ")' />
+<UiPageHeader Title='@P.Text("Something went wrong", "حدث خطأ")' />
+<div><a class="ui-btn ui-btn--outline" href="/">@P.Text("Go to dashboard", "الانتقال إلى لوحة المعلومات")</a></div>
+
+@code {
+    [CascadingParameter] private WorkspacePreferences P { get; set; } = default!;
+}

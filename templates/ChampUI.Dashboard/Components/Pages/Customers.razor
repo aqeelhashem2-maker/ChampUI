@@ -1,0 +1,49 @@
+@page "/customers"
+@inject IDashboardData Data
+
+<DashboardTitle Title='@P.Text("Customers", "العملاء")' />
+<UiPageHeader Title='@P.Text("Customers", "العملاء")'
+              Subtitle='@P.Text("Search and browse fictional customer accounts.", "ابحث في حسابات العملاء التجريبية وتصفحها.")' />
+<DashboardPanel TData="IReadOnlyList<Customer>" Fetch="Data.GetCustomersAsync" Context="customers">
+    <UiCard Flush="true">
+        <UiDataGrid @key="P.Arabic" TItem="Customer" Items="customers" PageSize="6" RowKeySelector="customer => customer.Id"
+                    SearchPlaceholder='@P.Text("Search customers…", "ابحث عن العملاء…")'
+                    EmptyTitle='@P.Text("No customers found", "لم يُعثر على عملاء")'
+                    EmptyDescription='@P.Text("Try a different search or clear filters.", "جرّب بحثًا مختلفًا أو امسح التصفية.")'
+                    PreviousLabel='@P.Text("Previous page", "الصفحة السابقة")' NextLabel='@P.Text("Next page", "الصفحة التالية")'
+                    PageLabel='@P.Text("Page", "الصفحة")' ColumnsLabel='@P.Text("Columns", "الأعمدة")'
+                    FilterLabel='@P.Text("Filter", "تصفية")' FilterPlaceholder='@P.Text("Filter…", "تصفية…")'
+                    ApplyFilterLabel='@P.Text("Apply", "تطبيق")' ClearFilterLabel='@P.Text("Clear", "مسح")'
+                    ClearAllFiltersLabel='@P.Text("Clear all", "مسح الكل")'
+                    SummaryFormat='@P.Text("Showing {0}–{1} of {2}", "عرض {0}–{1} من {2}")'>
+            <Columns>
+                <UiColumn TItem="Customer" Title='@P.Text("Name", "الاسم")' Field="Name" Value="customer => customer.Name" Sortable="true" Searchable="true">
+                    <Template><strong><bdi>@context.Name</bdi></strong></Template>
+                </UiColumn>
+                <UiColumn TItem="Customer" Title='@P.Text("Company", "الشركة")' Field="Company" Value="customer => customer.Company" Sortable="true" Searchable="true" Filterable="true">
+                    <Template><bdi>@context.Company</bdi></Template>
+                </UiColumn>
+                <UiColumn TItem="Customer" Title='@P.Text("Status", "الحالة")' Field="Status" Value="customer => P.Status(customer.Status)" Sortable="true" Filterable="true">
+                    <Template><UiBadge Variant="@Variant(context.Status)" Dot="true">@P.Status(context.Status)</UiBadge></Template>
+                </UiColumn>
+                <UiColumn TItem="Customer" Title='@P.Text("Email", "البريد الإلكتروني")' Field="Email" Value="customer => customer.Email" Searchable="true">
+                    <Template><bdi>@context.Email</bdi></Template>
+                </UiColumn>
+                <UiColumn TItem="Customer" Title='@P.Text("Joined", "تاريخ الانضمام")' Field="Joined" Value="customer => customer.Joined" Sortable="true">
+                    <Template>@P.Date(context.Joined)</Template>
+                </UiColumn>
+            </Columns>
+        </UiDataGrid>
+    </UiCard>
+</DashboardPanel>
+
+@code {
+    [CascadingParameter] private WorkspacePreferences P { get; set; } = default!;
+
+    private static UiVariant Variant(CustomerStatus status) => status switch
+    {
+        CustomerStatus.Active => UiVariant.Success,
+        CustomerStatus.Onboarding => UiVariant.Info,
+        _ => UiVariant.Neutral
+    };
+}
