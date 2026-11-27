@@ -1,5 +1,7 @@
 # ChampUI
 
+
+[Install the ChampUI coding plugin for Codex and Claude Code](docs/plugin/README.md)
 **Developed by Sadeem Systems.** ChampUI is an open-source UI component library for Blazor on .NET 10, licensed under [MIT](LICENSE).
 
 ChampUI includes themed layout and navigation components, forms, alerts and dialogs, SVG charts, and a DataGrid with local, paged-provider and virtual-range modes. It uses the ASP.NET Core shared framework and has no third-party NuGet dependencies.

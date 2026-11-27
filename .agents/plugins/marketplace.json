@@ -1,0 +1,12 @@
+{
+  "name": "sadeem-champui",
+  "interface": { "displayName": "Sadeem Systems" },
+  "plugins": [
+    {
+      "name": "champui",
+      "source": { "source": "local", "path": "./plugins/champui" },
+      "policy": { "installation": "AVAILABLE", "authentication": "ON_INSTALL" },
+      "category": "Developer Tools"
+    }
+  ]
+}
