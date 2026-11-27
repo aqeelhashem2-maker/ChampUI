@@ -1,0 +1,7 @@
+app.MapGet("/skill-api/rates/{location}", (string location) => location switch
+{
+    "central" => Results.Ok(new[] { new ServiceRate("Consultation", 80m), new ServiceRate("Follow-up", 45m) }),
+    "annex" => Results.StatusCode(StatusCodes.Status503ServiceUnavailable),
+    "new" => Results.Ok(Array.Empty<ServiceRate>()),
+    _ => Results.NotFound()
+});

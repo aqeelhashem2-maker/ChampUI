@@ -44,6 +44,10 @@ Load the assets alongside the Blazor script in the app's root component:
 
 Wrap content in `UiAppShell` to apply theme tokens. Use `UiThemeState` to switch appearance and the shell's `Direction` and `Language` parameters for RTL.
 
+## AI coding skill
+
+Install the project-local ChampUI skill for Codex or Claude Code, or use its instructions in a ChatGPT project. [Installation, examples and verification](docs/skill/README.md)
+
 ## Dashboard Starter
 
 Generate a .NET 10 Blazor dashboard with fictional data, English and Arabic layouts, and theme and identity settings. Install the published template with `dotnet new install SadeemSystems.ChampUI.Templates@0.1.3`, then run `dotnet new champui-dashboard -n MyDashboard`. Follow the [Dashboard Starter guide](templates/ChampUI.Dashboard/README.md).

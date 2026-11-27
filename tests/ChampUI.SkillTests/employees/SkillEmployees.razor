@@ -1,0 +1,36 @@
+@page "/skill-employees"
+@inject ToastService Toasts
+
+<UiPageHeader Title='@P.Text("Employee directory", "دليل الموظفين")' />
+<form @onsubmit="Save" @onsubmit:preventDefault>
+    <UiTextField Label='@P.Text("Employee name", "اسم الموظف")' @bind-Value="name"
+                 Error='@(invalidName ? P.Text("Enter an employee name.", "أدخل اسم الموظف.") : null)' />
+    <UiSelect TValue="int" Label='@P.Text("Department", "القسم")' Options="Departments" @bind-Value="department" />
+    <UiButton Type="submit">@P.Text("Save employee", "حفظ الموظف")</UiButton>
+</form>
+<ul aria-label='@P.Text("Saved in this session", "الموظفون المحفوظون في هذه الجلسة")'>
+    @foreach (var employee in employees)
+    {
+        <li><bdi>@employee.Name</bdi> · @DepartmentName(employee.Department)</li>
+    }
+</ul>
+
+@code {
+    [CascadingParameter] private WorkspacePreferences P { get; set; } = default!;
+    private sealed record Employee(string Name, int Department);
+    private readonly List<Employee> employees = [];
+    private string? name;
+    private int department = 1;
+    private bool invalidName;
+    private SelectOption<int>[] Departments => [new(1, DepartmentName(1)), new(2, DepartmentName(2))];
+    private string DepartmentName(int id) => id == 1 ? P.Text("Operations", "العمليات") : P.Text("Sales", "المبيعات");
+
+    private void Save()
+    {
+        invalidName = string.IsNullOrWhiteSpace(name);
+        if (invalidName) return;
+        employees.Add(new Employee(name!.Trim(), department));
+        name = null;
+        Toasts.Success(P.Text("Employee saved", "تم حفظ الموظف"));
+    }
+}
