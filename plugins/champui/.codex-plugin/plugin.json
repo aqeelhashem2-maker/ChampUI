@@ -1,0 +1,20 @@
+{
+  "name": "champui",
+  "version": "0.1.0",
+  "description": "Build and verify bilingual .NET 10 Blazor dashboards using published ChampUI components.",
+  "author": {
+    "name": "Sadeem Systems"
+  },
+  "license": "MIT",
+  "repository": "https://github.com/aqeelhashem2-maker/ChampUI",
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "ChampUI",
+    "shortDescription": "Build bilingual Blazor dashboards with ChampUI",
+    "developerName": "Sadeem Systems",
+    "category": "Developer Tools",
+    "defaultPrompt": [
+      "Create a bilingual ChampUI dashboard using the published template."
+    ]
+  }
+}

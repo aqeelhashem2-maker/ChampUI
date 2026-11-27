@@ -3,6 +3,10 @@ name: ChampUI skill evaluation
 on:
   push:
     paths:
+      - '.agents/plugins/marketplace.json'
+      - 'plugins/champui/**'
+      - 'docs/plugin/**'
+      - 'tools/package_champui_plugin.py'
       - 'skills/champui/**'
       - 'docs/skill/**'
       - 'docs/ai/**'
@@ -11,6 +15,10 @@ on:
       - '.github/workflows/champui-skill.yml'
   pull_request:
     paths:
+      - '.agents/plugins/marketplace.json'
+      - 'plugins/champui/**'
+      - 'docs/plugin/**'
+      - 'tools/package_champui_plugin.py'
       - 'skills/champui/**'
       - 'docs/skill/**'
       - 'docs/ai/**'
@@ -27,6 +35,26 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
+      - name: Validate portable manifest and reproduce plugin ZIP
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --location https://agent-plugins.org/schemas/1.0.0/plugin.schema.json -o "$RUNNER_TEMP/plugin.schema.json"
+          python3 -m venv "$RUNNER_TEMP/schema-env"
+          "$RUNNER_TEMP/schema-env/bin/pip" install jsonschema==4.25.1
+          "$RUNNER_TEMP/schema-env/bin/python" -c 'import json, jsonschema, sys; jsonschema.validate(json.load(open("plugins/champui/plugin.json")), json.load(open(sys.argv[1])))' "$RUNNER_TEMP/plugin.schema.json"
+          python3 tools/package_champui_plugin.py "$RUNNER_TEMP/champui.zip"
+          python3 tools/package_champui_plugin.py "$RUNNER_TEMP/replay.zip"
+          cmp "$RUNNER_TEMP/champui.zip" "$RUNNER_TEMP/replay.zip"
+          cd "$RUNNER_TEMP"
+          sha256sum champui.zip > SHA256SUMS
+      - uses: actions/upload-artifact@v4
+        with:
+          name: champui-plugin-review
+          path: |
+            ${{ runner.temp }}/champui.zip
+            ${{ runner.temp }}/SHA256SUMS
+          if-no-files-found: error
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.0.x'
