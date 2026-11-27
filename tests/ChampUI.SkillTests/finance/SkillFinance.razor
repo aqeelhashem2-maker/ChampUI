@@ -1,0 +1,27 @@
+@page "/skill-finance"
+
+<DashboardTitle Title='@P.Text("Revenue report", "تقرير الإيرادات")' />
+<UiPageHeader Title='@P.Text("Revenue report", "تقرير الإيرادات")' />
+<UiStatCard Label='@P.Text("Quarter revenue", "إيرادات الربع")' Value="@Money(RevenueReport.Total)" />
+<UiCard Title='@P.Text("Monthly revenue", "الإيرادات الشهرية")'>
+    <UiBarChart Labels="@Labels" Series="@Series" AriaLabel='@P.Text("Monthly revenue in SAR", "الإيرادات الشهرية بالريال السعودي")'
+                ValueFormatter="@(value => Money((decimal)value))" AxisFormatter='@(value => value.ToString("N0", ReportCulture))' />
+    <ul aria-label='@P.Text("Monthly amounts", "المبالغ الشهرية")'>
+        @foreach (var row in RevenueReport.Months)
+        {
+            <li>@P.Month(row.Month) · <bdi>@Money(row.Amount)</bdi></li>
+        }
+    </ul>
+</UiCard>
+
+@code {
+    [CascadingParameter] private WorkspacePreferences P { get; set; } = default!;
+
+    private CultureInfo ReportCulture => CultureInfo.GetCultureInfo(P.Arabic ? "ar-SA" : "en-US");
+    private string Money(decimal amount) => $"{amount.ToString("N2", ReportCulture)} {P.Text("SAR", "ر.س.")}";
+    private string[] Labels => RevenueReport.Months.Select(row => P.Month(row.Month)).ToArray();
+    private ChartSeries[] Series => [new() {
+        Name = P.Text("Revenue", "الإيرادات"),
+        Values = RevenueReport.Months.Select(row => (double)row.Amount).ToArray()
+    }];
+}

@@ -1,0 +1,46 @@
+name: ChampUI skill evaluation
+
+on:
+  push:
+    paths:
+      - 'skills/champui/**'
+      - 'docs/skill/**'
+      - 'docs/ai/**'
+      - 'tests/ChampUI.SkillTests/**'
+      - 'tests/ChampUI.TemplateTests/package*.json'
+      - '.github/workflows/champui-skill.yml'
+  pull_request:
+    paths:
+      - 'skills/champui/**'
+      - 'docs/skill/**'
+      - 'docs/ai/**'
+      - 'tests/ChampUI.SkillTests/**'
+      - 'tests/ChampUI.TemplateTests/package*.json'
+      - '.github/workflows/champui-skill.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  evaluate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install pinned Chromium
+        working-directory: tests/ChampUI.TemplateTests
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+      - name: Validate published-package documentation examples
+        run: python3 docs/ai/validate.py
+      - name: Evaluate five skill outputs and the EF service
+        env:
+          PLAYWRIGHT_MODULE: ${{ github.workspace }}/tests/ChampUI.TemplateTests/node_modules/playwright
+        run: python3 tests/ChampUI.SkillTests/evaluate.py

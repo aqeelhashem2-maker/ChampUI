@@ -1,0 +1,74 @@
+@page "/skill-rates"
+@implements IDisposable
+@inject ServiceRatesClient Client
+
+<DashboardTitle Title="Service rates" />
+<UiPageHeader Title="Service rates" />
+<UiSelect TValue="string" Label="Location" Options="Locations" Value="@location"
+          ValueChanged="ChangeLocation" Disabled="loading" />
+@if (loading)
+{
+    <UiLoading Label="Loading rates" />
+}
+else if (failed)
+{
+    <UiAlert Variant="UiVariant.Danger" Title="Rates unavailable">The rate service could not be reached.</UiAlert>
+    <UiButton OnClick="Load">Retry</UiButton>
+}
+else if (rates.Length == 0)
+{
+    <UiEmptyState Title="No rates published" />
+}
+else
+{
+    <ul aria-label="Service rates">
+        @foreach (var rate in rates)
+        {
+            <li>@rate.Name · @rate.Amount.ToString("N2", CultureInfo.InvariantCulture) SAR</li>
+        }
+    </ul>
+}
+
+@code {
+    private readonly CancellationTokenSource lifetime = new();
+    private static readonly SelectOption<string>[] Locations =
+        [new("central", "Central"), new("annex", "Annex"), new("new", "New branch")];
+    private string location = "central";
+    private ServiceRate[] rates = [];
+    private bool loading, failed;
+
+    protected override Task OnInitializedAsync() => Load();
+
+    private async Task ChangeLocation(string next)
+    {
+        location = next;
+        await Load();
+    }
+
+    private async Task Load()
+    {
+        loading = true;
+        failed = false;
+        rates = [];
+        try
+        {
+            rates = await Client.ReadAsync(location, lifetime.Token);
+        }
+        catch (OperationCanceledException) when (lifetime.IsCancellationRequested) { }
+        catch (Exception error) when (error is HttpRequestException or OperationCanceledException
+                                        or System.Text.Json.JsonException or InvalidDataException)
+        {
+            failed = true;
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+
+    public void Dispose()
+    {
+        lifetime.Cancel();
+        lifetime.Dispose();
+    }
+}

@@ -1,0 +1,49 @@
+@page "/skill-customers"
+
+<DashboardTitle Title='@P.Text("Customer directory", "دليل العملاء")' />
+<UiPageHeader Title='@P.Text("Customer directory", "دليل العملاء")' />
+<UiDataGrid TItem="Account" Items="accounts" RowKeySelector="account => account.Id"
+            SearchPlaceholder='@P.Text("Search accounts", "ابحث عن حساب")'
+            EmptyTitle='@P.Text("No matching accounts", "لا توجد حسابات مطابقة")'
+            EmptyDescription='@P.Text("Try another name.", "جرّب اسمًا آخر.")'
+            ShowColumnToggle="false" PageSize="10"
+            SummaryFormat='@P.Text("Showing {0}–{1} of {2}", "عرض {0}–{1} من {2}")'
+            PreviousLabel='@P.Text("Previous page", "الصفحة السابقة")'
+            NextLabel='@P.Text("Next page", "الصفحة التالية")' PageLabel='@P.Text("Page", "الصفحة")'>
+    <Columns>
+        <UiColumn TItem="Account" Title='@P.Text("Customer", "العميل")' Value="account => account.Name">
+            <Template Context="account"><bdi>@account.Name</bdi></Template>
+        </UiColumn>
+        <UiColumn TItem="Account" Title='@P.Text("Actions", "الإجراءات")' Sortable="false" Searchable="false">
+            <Template Context="account">
+                <UiButton OnClick="() => ShowDetails(account)">@P.Text("Details", "التفاصيل")</UiButton>
+            </Template>
+        </UiColumn>
+    </Columns>
+</UiDataGrid>
+<UiDialog @bind-Visible="open" Title='@P.Text("Account details", "تفاصيل الحساب")'
+          CloseLabel='@P.Text("Close", "إغلاق")'>
+    @if (current is not null)
+    {
+        <p><bdi>@current.Name</bdi></p>
+        <p><bdi>@current.Email</bdi></p>
+    }
+</UiDialog>
+
+@code {
+    [CascadingParameter] private WorkspacePreferences P { get; set; } = default!;
+
+    private sealed record Account(int Id, string Name, string Email);
+    private readonly Account[] accounts = [
+        new(10, "Rana Ali", "rana@example.com"),
+        new(20, "Noor Sami", "noor@example.com")
+    ];
+    private Account? current;
+    private bool open;
+
+    private void ShowDetails(Account account)
+    {
+        current = account;
+        open = true;
+    }
+}

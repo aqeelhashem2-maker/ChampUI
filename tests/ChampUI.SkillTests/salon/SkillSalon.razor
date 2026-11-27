@@ -1,0 +1,32 @@
+@page "/skill-salon"
+
+<UiPageHeader Title='@P.Text("Salon appointments", "مواعيد الصالون")' />
+<UiDatePicker Label='@P.Text("Appointment day", "يوم الموعد")' @bind-Value="day" />
+@if (AppointmentsForDay.Any())
+{
+    <ul aria-label='@P.Text("Appointments", "المواعيد")'>
+        @foreach (var visit in AppointmentsForDay)
+        {
+            <li @key="visit.Id">
+                <bdi>@visit.Time.ToString("HH:mm", CultureInfo.InvariantCulture)</bdi>
+                · @P.Text(visit.Service, visit.ArabicService)
+            </li>
+        }
+    </ul>
+}
+else
+{
+    <UiEmptyState Title='@P.Text("No appointments", "لا توجد مواعيد")'
+                  Description='@P.Text("Choose another day.", "اختر يومًا آخر.")' />
+}
+
+@code {
+    [CascadingParameter] private WorkspacePreferences P { get; set; } = default!;
+    private sealed record Visit(int Id, DateOnly Day, TimeOnly Time, string Service, string ArabicService);
+    private DateOnly? day = new DateOnly(2026, 11, 26);
+    private readonly Visit[] appointments = [
+        new(1, new(2026, 11, 26), new(10, 30), "Haircut", "قص الشعر"),
+        new(2, new(2026, 11, 27), new(14, 15), "Hair styling", "تصفيف الشعر")
+    ];
+    private IEnumerable<Visit> AppointmentsForDay => appointments.Where(v => v.Day == day).OrderBy(v => v.Time);
+}

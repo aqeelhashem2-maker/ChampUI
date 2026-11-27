@@ -1,0 +1,8 @@
+builder.Services.AddHttpClient<ServiceRatesClient>((services, client) =>
+{
+    // The fixture API runs on the same loopback test server, on an ephemeral port.
+    var server = services.GetRequiredService<Microsoft.AspNetCore.Hosting.Server.IServer>();
+    var addresses = server.Features.Get<Microsoft.AspNetCore.Hosting.Server.Features.IServerAddressesFeature>();
+    client.BaseAddress = addresses!.Addresses.Select(value => new Uri(value)).Single(uri => uri.IsLoopback);
+    client.Timeout = TimeSpan.FromSeconds(10);
+});
