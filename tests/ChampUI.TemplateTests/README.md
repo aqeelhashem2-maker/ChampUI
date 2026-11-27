@@ -9,7 +9,7 @@ CHAMPUI_APPROVED_PACKAGE=/absolute/path/to/ChampUI.0.3.3.nupkg \
   tests/ChampUI.TemplateTests/verify.sh
 ```
 
-Use the validated local `ChampUI.0.3.3.nupkg`. Set `CHAMPUI_LOCAL_ONLY=1` to use this package for both generated applications while 0.3.3 is unpublished. Run the gate with that option unset once 0.3.3 is available from NuGet.org. The gate verifies the supplied package SHA-256. Set `CHAMPUI_TEMPLATE_PACKAGE` to an existing local template package to test those exact bytes. When that variable is omitted, the gate packs the checked-out template source before testing.
+Use the validated local `ChampUI.0.3.3.nupkg`. Set `CHAMPUI_LOCAL_ONLY=1` to use this package for both generated applications for a local-only comparison. Leave that option unset to verify the published Core 0.3.3 package. The gate verifies the supplied package SHA-256. Set `CHAMPUI_TEMPLATE_PACKAGE` to an existing local template package to test those exact bytes. When that variable is omitted, the gate packs the checked-out template source before testing.
 
 On Linux, use `npx playwright install --with-deps chromium` to install browser dependencies. The gate starts two isolated applications from the packed template. Development restores the verified local ChampUI package. Published Production restores ChampUI from the official public registry. The SDK may also restore its own ASP.NET Core static assets package.
 

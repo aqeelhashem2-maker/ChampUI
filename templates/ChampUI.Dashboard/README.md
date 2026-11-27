@@ -1,20 +1,19 @@
 # ChampUI Dashboard Starter
 
-A .NET 10 Blazor Interactive Server dashboard from Sadeem Systems. It includes a fictional operations overview, customers and orders grids, analytics, and session-scoped workspace preferences. The application requires ChampUI 0.3.3. While that library version is available only as a local candidate, use the local feed instructions before building.
+A .NET 10 Blazor Interactive Server dashboard from Sadeem Systems. It includes a fictional operations overview, customers and orders grids, analytics, and session-scoped workspace preferences. The application requires ChampUI 0.3.3. Restore the library from NuGet.org.
 
 ## Get started
 
-Install the [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0) and check `dotnet --version`. From the ChampUI source checkout, build and install the local template package:
+Install the [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0) and check `dotnet --version`. Install the published template and create a project:
 
 ```sh
-dotnet pack templates/ChampUI.Templates.Packaging -c Release -o .local/champui-templates
-dotnet new install .local/champui-templates/SadeemSystems.ChampUI.Templates.0.1.3.nupkg
+dotnet new install SadeemSystems.ChampUI.Templates@0.1.3
 dotnet new list champui-dashboard
 dotnet new champui-dashboard -n MyDashboard
 cd MyDashboard
 ```
 
-Once ChampUI 0.3.3 is available on your configured NuGet source, run:
+Restore and run the generated application:
 
 ```sh
 dotnet restore
@@ -32,7 +31,7 @@ dotnet build --no-restore
 dotnet run --no-build --no-restore
 ```
 
-The ChampUI component library is available on NuGet.org. Install the starter template from its local package file. Use `dotnet new champui-dashboard -n Northwind.Ops-Portal` to choose a different project and assembly name at generation time. The display name in configuration is independent of the .NET project name.
+The ChampUI component library is available on NuGet.org. Use `dotnet new champui-dashboard -n Northwind.Ops-Portal` to choose a different project and assembly name at generation time. The display name in configuration is independent of the .NET project name.
 
 ## Project structure
 
