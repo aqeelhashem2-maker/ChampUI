@@ -17,10 +17,10 @@ Explore **Foundations**, **Forms**, **Data** and **Charts** in ChampUI Showcase.
 Install the published package from NuGet.org:
 
 ```sh
-dotnet add package ChampUI --version 0.3.1
+dotnet add package ChampUI --version 0.3.3
 ```
 
-For a local release candidate, add its package directory as a temporary NuGet source in an isolated consumer.
+See the [agent documentation and component inventory](docs/ai/README.md) for compiled examples and complete Interactive Server setup.
 
 Register the library and map static assets in the host:
 
@@ -46,7 +46,7 @@ Wrap content in `UiAppShell` to apply theme tokens. Use `UiThemeState` to switch
 
 ## Dashboard Starter
 
-Generate a .NET 10 Blazor dashboard with fictional data, English and Arabic layouts, and theme and identity settings. The starter template package is built and installed locally. Follow the [Dashboard Starter guide](templates/ChampUI.Dashboard/README.md).
+Generate a .NET 10 Blazor dashboard with fictional data, English and Arabic layouts, and theme and identity settings. Install the published template with `dotnet new install SadeemSystems.ChampUI.Templates@0.1.3`, then run `dotnet new champui-dashboard -n MyDashboard`. Follow the [Dashboard Starter guide](templates/ChampUI.Dashboard/README.md).
 
 ## DataGrid behavior
 
