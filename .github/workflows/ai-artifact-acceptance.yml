@@ -1,0 +1,34 @@
+name: AI artifact acceptance
+on:
+  push:
+    branches: [review/champui-chatgpt-work-evidence]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  original-artifacts:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install pinned browser test dependencies
+        working-directory: tests/ChampUI.TemplateTests
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+      - name: Verify both original artifacts
+        env:
+          TMPDIR: ${{ runner.temp }}
+        run: bash tests/ChampUI.AiArtifacts/verify.sh
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ai-artifact-acceptance-evidence
+          path: ${{ runner.temp }}/champui-ai-artifacts.*/verification.log
+          if-no-files-found: warn

@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="BusinessChecks.cs" />
+    <Compile Include="$(SalonSource)/Services/SalonStore.cs" Link="SalonStore.cs" />
+  </ItemGroup>
+  <Target Name="RequireOriginalSource" BeforeTargets="CoreCompile" Condition="'$(SalonSource)' == ''">
+    <Error Text="Provide -p:SalonSource=/path/to/original/SalonDashboard" />
+  </Target>
+</Project>
