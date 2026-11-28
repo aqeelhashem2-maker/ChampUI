@@ -1,0 +1,127 @@
+@page "/customers"
+@using ChampUI.Components.Actions
+@using ChampUI.Components.Data
+@using ChampUI.Components.Forms
+@using ChampUI.Components.Feedback
+@using ChampUI.Components.Layout
+@using ChampUI.Models
+@using ChampUI.Services
+@inject ToastService Toast
+
+<PageTitle>@T("Customers", "العملاء")</PageTitle>
+<UiPageHeader Title='@T("Customers", "إدارة العملاء")'
+              Subtitle='@T("Add and browse demo customers.", "إضافة العملاء التجريبيين وعرضهم.")' />
+
+<UiCard Title='@T("Add customer", "إضافة عميل")'>
+    <ChildContent>
+        <form novalidate @onsubmit="Review" @onsubmit:preventDefault>
+            <div style="display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));">
+                <UiTextField Label='@T("Full name", "الاسم الكامل")'
+                             @bind-Value="_name" Error="@NameError" AutoComplete="name" />
+                <UiTextField Label='@T("Email", "البريد الإلكتروني")'
+                             @bind-Value="_email" Error="@EmailError" Type="email" AutoComplete="email" dir="ltr" />
+            </div>
+            <div style="margin-block-start:16px;">
+                <UiButton Type="submit">@T("Review customer", "مراجعة الإضافة")</UiButton>
+            </div>
+        </form>
+    </ChildContent>
+</UiCard>
+
+<div style="margin-block-start:16px;min-width:0;">
+    <UiCard Flush="true">
+        <ChildContent>
+            <UiDataGrid @key="P.Arabic" TItem="CustomerRow" Items="_rows"
+                        RowKeySelector="row => row.Id" PageSize="5" ShowColumnToggle="false"
+                        SearchPlaceholder='@T("Search customers…", "ابحث عن العملاء…")'
+                        EmptyTitle='@T("No customers", "لا يوجد عملاء")'
+                        EmptyDescription='@T("Try another search.", "جرّب بحثًا آخر.")'
+                        PreviousLabel='@T("Previous page", "الصفحة السابقة")'
+                        NextLabel='@T("Next page", "الصفحة التالية")'
+                        PageLabel='@T("Page", "الصفحة")'
+                        SummaryFormat='@T("Showing {0}–{1} of {2}", "عرض {0}–{1} من {2}")'>
+                <Columns>
+                    <UiColumn TItem="CustomerRow" Title='@T("Name", "الاسم")'
+                              Field="Name" Value="row => row.Name">
+                        <Template><bdi>@context.Name</bdi></Template>
+                    </UiColumn>
+                    <UiColumn TItem="CustomerRow" Title='@T("Email", "البريد الإلكتروني")'
+                              Field="Email" Value="row => row.Email">
+                        <Template><bdi>@context.Email</bdi></Template>
+                    </UiColumn>
+                </Columns>
+            </UiDataGrid>
+        </ChildContent>
+    </UiCard>
+</div>
+
+<UiDialog @bind-Visible="_open" Title='@T("Confirm addition", "تأكيد الإضافة")'
+          Description='@T("Add this customer to the demo list?", "هل تريد إضافة هذا العميل إلى القائمة التجريبية؟")'
+          CloseLabel='@T("Close", "إغلاق")' OnClosed="Cancel">
+    <ChildContent>
+        @if (_pending is not null)
+        {
+            <p><bdi>@_pending.Name</bdi></p>
+            <p><bdi>@_pending.Email</bdi></p>
+        }
+    </ChildContent>
+    <Footer>
+        <UiButton Variant="UiVariant.Outline" OnClick="Cancel">@T("Cancel", "إلغاء")</UiButton>
+        <UiButton OnClick="Confirm">@T("Confirm", "تأكيد")</UiButton>
+    </Footer>
+</UiDialog>
+
+@code {
+    [CascadingParameter] private WorkspacePreferences P { get; set; } = default!;
+    private string T(string en, string ar) => P.Text(en, ar);
+
+    private sealed record CustomerRow(Guid Id, string Name, string Email);
+    private CustomerRow[] _rows =
+    [
+        new(Guid.NewGuid(), "سارة علي", "sara@example.com"),
+        new(Guid.NewGuid(), "Noor Ahmad", "noor@example.com")
+    ];
+    private string? _name, _email;
+    private bool _attempted, _open;
+    private CustomerRow? _pending;
+    private string? NameError => _attempted && string.IsNullOrWhiteSpace(_name)
+        ? T("Name is required.", "الاسم مطلوب.") : null;
+    private string? EmailError => !_attempted ? null : !ValidEmail(_email)
+        ? T("Enter a valid email.", "أدخل بريدًا إلكترونيًا صحيحًا.")
+        : Exists(_email!) ? T("Email already exists.", "البريد الإلكتروني موجود بالفعل.") : null;
+
+    private static bool ValidEmail(string? value) =>
+        !string.IsNullOrWhiteSpace(value) &&
+        System.Net.Mail.MailAddress.TryCreate(value.Trim(), out var address) &&
+        string.Equals(address.Address, value.Trim(), StringComparison.OrdinalIgnoreCase);
+
+    private bool Exists(string value) => _rows.Any(row =>
+        string.Equals(row.Email, value.Trim(), StringComparison.OrdinalIgnoreCase));
+
+    private void Review()
+    {
+        _attempted = true;
+        if (NameError is not null || EmailError is not null) return;
+        _pending = new(Guid.NewGuid(), _name!.Trim(), _email!.Trim());
+        _open = true;
+    }
+
+    private void Cancel() { _open = false; _pending = null; }
+
+    private void Confirm()
+    {
+        if (!_open || _pending is not { } candidate) return;
+        // Repeat validation on the Interactive Server circuit before changing data.
+        if (string.IsNullOrWhiteSpace(candidate.Name) || !ValidEmail(candidate.Email) || Exists(candidate.Email))
+        {
+            Cancel();
+            Toast.Error(T("Customer could not be added.", "تعذرت إضافة العميل."));
+            return;
+        }
+        _rows = [.. _rows, candidate];
+        Cancel();
+        _name = _email = null;
+        _attempted = false;
+        Toast.Success(T("Customer added.", "تمت إضافة العميل."));
+    }
+}

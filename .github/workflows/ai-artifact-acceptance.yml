@@ -1,0 +1,70 @@
+name: AI artifact acceptance
+on:
+  push:
+    branches: [main, review/champui-chatgpt-work-evidence]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  original-artifacts:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install pinned browser test dependencies
+        working-directory: tests/ChampUI.TemplateTests
+        run: |
+          npm ci
+          node -e "const v=require('playwright/package.json').version; console.log('Playwright '+v); if(v!=='1.55.1') process.exit(1)"
+          npx playwright install --with-deps chromium
+      - name: Verify both original artifacts
+        env:
+          TMPDIR: ${{ runner.temp }}
+        run: bash tests/ChampUI.AiArtifacts/verify.sh
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ai-artifact-acceptance-evidence
+          path: ${{ runner.temp }}/champui-ai-artifacts.*/verification.log
+          if-no-files-found: warn
+  starter-regression:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install locked browser dependencies
+        working-directory: tests/ChampUI.TemplateTests
+        run: |
+          npm ci
+          node -e "const v=require('playwright/package.json').version; console.log('Playwright '+v); if(v!=='1.55.1') process.exit(1)"
+          npx playwright install --with-deps chromium
+      - name: Fetch approved Core package
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release download v0.3.3 --repo aqeelhashem2-maker/ChampUI --pattern ChampUI.0.3.3.nupkg --dir "$RUNNER_TEMP"
+      - name: Run full Starter regression
+        env:
+          CHAMPUI_INPUT_AUDIT: ${{ github.workspace }}/tests/UiTextField.Audit
+          CHAMPUI_APPROVED_PACKAGE: ${{ runner.temp }}/ChampUI.0.3.3.nupkg
+          NODE_PATH: ${{ github.workspace }}/tests/ChampUI.TemplateTests/node_modules
+        run: bash tests/ChampUI.TemplateTests/verify.sh "$RUNNER_TEMP/starter-evidence"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: starter-regression-evidence
+          path: ${{ runner.temp }}/starter-evidence
+          if-no-files-found: warn
